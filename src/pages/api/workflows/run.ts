@@ -63,7 +63,7 @@ export default async function handler(
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 299000);
+  const timeoutId = setTimeout(() => controller.abort(), 299000000);
 
   try {
     const validatedBody = validateRequest(req.body);

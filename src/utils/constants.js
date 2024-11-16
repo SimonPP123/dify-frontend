@@ -1,6 +1,6 @@
 export const DIFY_APPS = {
   APP_1: {
-    ID: '4c9a6fd8-e444-409b-aa34-a963054cd5da',
+    ID: 'd0ed912c-9e20-4a6f-bf94-65b1e11c195c',
     NAME: 'First Application',
     DESCRIPTION: 'Main workflow application'
   }
