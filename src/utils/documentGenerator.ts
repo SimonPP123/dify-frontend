@@ -65,32 +65,43 @@ const parseMarkdown = (text: string): MarkdownItem[] => {
 
 const parseBoldText = (text: string): TextSegment[] => {
   const segments: TextSegment[] = [];
-  const boldPattern = /\*\*(.*?)\*\*/g;
+  const boldPattern = /\*\*([^*]+)\*\*/g;
   let lastIndex = 0;
   let match;
 
   while ((match = boldPattern.exec(text)) !== null) {
     // Add non-bold text before the match
     if (match.index > lastIndex) {
+      const plainText = text.slice(lastIndex, match.index).trim();
+      if (plainText) {
+        segments.push({
+          text: plainText,
+          isBold: false
+        });
+      }
+    }
+    
+    // Add bold text (Cyrillic-aware)
+    const boldText = match[1].trim();
+    if (boldText) {
       segments.push({
-        text: text.slice(lastIndex, match.index),
-        isBold: false
+        text: boldText,
+        isBold: true
       });
     }
-    // Add bold text
-    segments.push({
-      text: match[1],
-      isBold: true
-    });
+    
     lastIndex = match.index + match[0].length;
   }
 
   // Add remaining non-bold text
   if (lastIndex < text.length) {
-    segments.push({
-      text: text.slice(lastIndex),
-      isBold: false
-    });
+    const remainingText = text.slice(lastIndex).trim();
+    if (remainingText) {
+      segments.push({
+        text: remainingText,
+        isBold: false
+      });
+    }
   }
 
   return segments;
