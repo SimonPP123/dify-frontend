@@ -11,22 +11,35 @@ import { WorkflowStateManager } from '../utils/WorkflowStateManager';
 import { DownloadButtons } from './DownloadButtons';
 
 const schema = yup.object().shape({
-  system_message_1: yup.string().required('System Message 1 is required').max(10000),
-  system_message_2: yup.string().required('System Message 2 is required').max(10000),
-  user_prompt_1: yup.string().required('User Prompt 1 is required').max(10000),
-  user_prompt_2: yup.string().required('User Prompt 2 is required').max(10000),
+  insights_number: yup.string()
+    .oneOf(['5', '10', '15', '20', '25'], 'Please select a valid number of insights')
+    .required('Number of insights is required'),
+  summary_insights_number: yup.string()
+    .oneOf(['10', '20', '30', '40', '50'], 'Please select a valid number of summary insights')
+    .required('Number of summary insights is required'),
+  language: yup.string()
+    .oneOf(['Български', 'English'], 'Please select a valid language')
+    .required('Language is required'),
   selectedApp: yup.string().required('Please select an application'),
   file_upload: yup.string().required('File content is required').max(1000000)
 });
 
-const TextAreaField = ({ name, register, errors, placeholder, rows = 4 }) => (
+const SelectField = ({ name, register, errors, options, label }) => (
   <div>
-    <textarea
+    <label className="block text-sm font-medium text-gray-700 mb-2">
+      {label}
+    </label>
+    <select
       {...register(name)}
       className="w-full p-2 border rounded-md"
-      rows={rows}
-      placeholder={placeholder}
-    />
+    >
+      <option value="">Select {label}</option>
+      {options.map(option => (
+        <option key={option} value={option}>
+          {option}
+        </option>
+      ))}
+    </select>
     {errors[name] && (
       <p className="text-red-500 text-sm mt-1">{errors[name].message}</p>
     )}
@@ -79,7 +92,10 @@ export default function RunWorkflow() {
     streamingResponse,
     currentWorkflowId,
     fullResponse,
-    fetchWorkflowResult 
+    fetchWorkflowResult,
+    isConnected,
+    connectionError,
+    checkConnection
   } = useDifyAPI();
 
   const getWorkflowState = useCallback(() => {
@@ -176,20 +192,63 @@ export default function RunWorkflow() {
     (fullResponse.output || fullResponse.questions) && 
     Object.keys(fullResponse).length > 0;
 
+  const renderConnectionStatus = () => {
+    if (connectionError) {
+      return (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">
+                {connectionError}
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (isConnected) {
+      return (
+        <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-green-700">
+                Connected to API
+              </p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {renderConnectionStatus()}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {Object.entries(INPUT_FIELDS).map(([key, field]) => (
           <div key={key}>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {field.label}
-            </label>
-            <TextAreaField
-              name={field.variable}
-              register={register}
-              errors={errors}
-              placeholder={field.placeholder}
-            />
+            {field.type === 'select' ? (
+              <SelectField
+                name={field.variable}
+                register={register}
+                errors={errors}
+                options={field.options}
+                label={field.label}
+              />
+            ) : null}
           </div>
         ))}
 

@@ -7,10 +7,9 @@ interface APIError extends Error {
 
 interface WorkflowRequest {
   inputs: {
-    system_message_1: string;
-    system_message_2: string;
-    user_prompt_1: string;
-    user_prompt_2: string;
+    insights_number: string;
+    summary_insights_number: string;
+    language: string;
     file_upload: string;
     'sys.app_id': string;
     'sys.user_id': string;
@@ -25,10 +24,9 @@ const validateRequest = (body: any): WorkflowRequest => {
   }
 
   const required = [
-    'system_message_1',
-    'system_message_2',
-    'user_prompt_1',
-    'user_prompt_2',
+    'insights_number',
+    'summary_insights_number',
+    'language',
     'file_upload',
     'sys.app_id',
     'sys.user_id'
@@ -38,6 +36,21 @@ const validateRequest = (body: any): WorkflowRequest => {
     if (!body.inputs[field]) {
       throw new Error(`Missing required input: ${field}`);
     }
+  }
+
+  // Validate select options
+  const validInsights = ['5', '10', '15', '20', '25'];
+  const validSummaryInsights = ['10', '20', '30', '40', '50'];
+  const validLanguages = ['Български', 'English'];
+
+  if (!validInsights.includes(body.inputs.insights_number)) {
+    throw new Error('Invalid insights number');
+  }
+  if (!validSummaryInsights.includes(body.inputs.summary_insights_number)) {
+    throw new Error('Invalid summary insights number');
+  }
+  if (!validLanguages.includes(body.inputs.language)) {
+    throw new Error('Invalid language');
   }
 
   return body as WorkflowRequest;

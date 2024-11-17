@@ -4,6 +4,8 @@ import { WorkflowEvent, SendMessageParams, WorkflowResponse } from '../types/api
 export const useDifyAPI = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [streamingResponse, setStreamingResponse] = useState('');
   const [fullResponse, setFullResponse] = useState<any>(null);
   const [currentWorkflowId, setCurrentWorkflowId] = useState<string | null>(null);
@@ -76,7 +78,46 @@ export const useDifyAPI = () => {
     }
   }, []);
 
+  const checkConnection = useCallback(async () => {
+    try {
+      const response = await fetch('/api/workflows/health', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        setIsConnected(true);
+        setConnectionError(null);
+        return true;
+      } else {
+        setIsConnected(false);
+        setConnectionError(`API endpoint not available: ${response.status}`);
+        return false;
+      }
+    } catch (error) {
+      setIsConnected(false);
+      setConnectionError(error instanceof Error ? error.message : 'Failed to connect to API');
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    checkConnection();
+    const intervalId = setInterval(checkConnection, 30000);
+
+    return () => clearInterval(intervalId);
+  }, [checkConnection]);
+
   const sendMessage = useCallback(async (params: SendMessageParams) => {
+    if (!isConnected) {
+      await checkConnection();
+      if (!isConnected) {
+        throw new Error('API endpoint is not available');
+      }
+    }
+
     if (abortController.current) {
       abortController.current.abort();
     }
@@ -140,7 +181,7 @@ export const useDifyAPI = () => {
       setLoading(false);
       throw error;
     }
-  }, [handleWorkflowEvent]);
+  }, [isConnected, checkConnection, handleWorkflowEvent]);
 
   return {
     sendMessage,
@@ -150,6 +191,9 @@ export const useDifyAPI = () => {
     streamingResponse,
     currentWorkflowId,
     fullResponse,
-    fetchWorkflowResult
+    fetchWorkflowResult,
+    isConnected,
+    connectionError,
+    checkConnection
   };
 };

@@ -1,8 +1,7 @@
 export interface WorkflowInputs {
-  system_message_1: string;
-  system_message_2: string;
-  user_prompt_1: string;
-  user_prompt_2: string;
+  insights_number: '5' | '10' | '15' | '20' | '25';
+  summary_insights_number: '10' | '20' | '30' | '40' | '50';
+  language: 'Български' | 'English';
   file_upload: string;
   'sys.app_id': string;
   'sys.user_id': string;

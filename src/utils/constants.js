@@ -11,28 +11,25 @@ export const SYSTEM_USER = {
 };
 
 export const INPUT_FIELDS = {
-  SYSTEM_MESSAGE_1: {
-    variable: 'system_message_1',
-    label: 'System Message 1',
+  INSIGHTS_NUMBER: {
+    variable: 'insights_number',
+    label: 'Number of Insights',
     required: true,
-    maxLength: 10000
+    type: 'select',
+    options: ['5', '10', '15', '20', '25']
   },
-  SYSTEM_MESSAGE_2: {
-    variable: 'system_message_2',
-    label: 'System Message 2',
+  SUMMARY_INSIGHTS_NUMBER: {
+    variable: 'summary_insights_number',
+    label: 'Number of Summary Insights',
     required: true,
-    maxLength: 10000
+    type: 'select',
+    options: ['10', '20', '30', '40', '50']
   },
-  USER_PROMPT_1: {
-    variable: 'user_prompt_1',
-    label: 'User Prompt 1',
+  LANGUAGE: {
+    variable: 'language',
+    label: 'Language',
     required: true,
-    maxLength: 10000
-  },
-  USER_PROMPT_2: {
-    variable: 'user_prompt_2',
-    label: 'User Prompt 2',
-    required: true,
-    maxLength: 10000
+    type: 'select',
+    options: ['Български', 'English']
   }
 };
