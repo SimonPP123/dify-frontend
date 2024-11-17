@@ -194,6 +194,50 @@ class PDFGenerator {
     this.yOffset += 3;
   }
 
+  private processCyrillicText(text: string): TextSegment[] {
+    const segments: TextSegment[] = [];
+    let currentText = '';
+    let isBold = false;
+    
+    // Handle **text** pattern for bold text
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === '*' && text[i + 1] === '*') {
+        if (currentText) {
+          segments.push({ text: currentText, isBold });
+          currentText = '';
+        }
+        isBold = !isBold;
+        i++; // Skip next asterisk
+        continue;
+      }
+      currentText += text[i];
+    }
+    
+    // Add any remaining text
+    if (currentText) {
+      segments.push({ text: currentText, isBold });
+    }
+    
+    return segments;
+  }
+
+  private addSummaryText(doc: jsPDF, text: string, x: number, y: number): number {
+    const segments = this.processCyrillicText(text);
+    let currentX = x;
+    
+    segments.forEach(segment => {
+      doc.setFont(
+        segment.isBold ? FONTS.BOLD.name : FONTS.REGULAR.name,
+        segment.isBold ? FONTS.BOLD.style : FONTS.REGULAR.style
+      );
+      
+      doc.text(segment.text, currentX, y);
+      currentX += doc.getStringUnitWidth(segment.text) * doc.getFontSize();
+    });
+    
+    return y + 7; // Return next Y position
+  }
+
   public generate(output: string[], questions: string[], summary?: string) {
     try {
       // Process output content
