@@ -98,44 +98,64 @@ const parseBoldText = (text: string): TextSegment[] => {
 class PDFGenerator {
   private doc: jsPDF;
   private yOffset: number;
-  private margin: number;
   private pageWidth: number;
+  private margin: number;
   private lineHeight: number;
 
   constructor() {
     this.doc = new jsPDF();
-    this.yOffset = 20;
     this.margin = 20;
-    this.pageWidth = this.doc.internal.pageSize.width - (this.margin * 2);
     this.lineHeight = 7;
+    this.pageWidth = this.doc.internal.pageSize.width - (2 * this.margin);
+    this.yOffset = this.margin;
     
-    // Add fonts
-    this.doc.addFont(RobotoRegularBase64, FONTS.REGULAR.name, FONTS.REGULAR.style);
-    this.doc.addFont(RobotoBoldBase64, FONTS.BOLD.name, FONTS.BOLD.style);
-    this.doc.setFont(FONTS.REGULAR.name);
+    // Initialize fonts properly
+    this.initializeFonts();
+  }
+
+  private initializeFonts() {
+    try {
+      // Add fonts to VFS first
+      this.doc.addFileToVFS('Roboto-Regular.ttf', RobotoRegularBase64);
+      this.doc.addFileToVFS('Roboto-Bold.ttf', RobotoBoldBase64);
+
+      // Then add the fonts
+      this.doc.addFont('Roboto-Regular.ttf', FONTS.REGULAR.name, FONTS.REGULAR.style);
+      this.doc.addFont('Roboto-Bold.ttf', FONTS.BOLD.name, FONTS.BOLD.style);
+
+      // Set default font
+      this.doc.setFont(FONTS.REGULAR.name);
+    } catch (error) {
+      console.error('Error initializing fonts:', error);
+      // Fallback to built-in font
+      this.doc.setFont('helvetica');
+    }
   }
 
   private addText(text: string, isBold: boolean = false) {
-    this.doc.setFont(isBold ? FONTS.BOLD.name : FONTS.REGULAR.name);
-    
-    // Improved text wrapping with maxWidth option
-    const lines = this.doc.splitTextToSize(text, this.pageWidth);
-    
-    lines.forEach((line: string) => {
-      if (this.yOffset > this.doc.internal.pageSize.height - this.margin) {
-        this.doc.addPage();
-        this.yOffset = this.margin;
-      }
+    try {
+      this.doc.setFont(isBold ? FONTS.BOLD.name : FONTS.REGULAR.name);
       
-      // Use maxWidth option for better text wrapping
-      this.doc.text(line, this.margin, this.yOffset, {
-        maxWidth: this.pageWidth,
-        align: 'left'
+      // Use proper text wrapping with font metrics
+      const lines = this.doc.splitTextToSize(text, this.pageWidth, {
+        fontName: isBold ? FONTS.BOLD.name : FONTS.REGULAR.name
       });
+      
+      lines.forEach((line: string) => {
+        if (this.yOffset > this.doc.internal.pageSize.height - this.margin) {
+          this.doc.addPage();
+          this.yOffset = this.margin;
+        }
+        
+        this.doc.text(line, this.margin, this.yOffset);
+        this.yOffset += this.lineHeight;
+      });
+    } catch (error) {
+      console.error('Error adding text:', error);
+      // Fallback to simple text addition without wrapping
+      this.doc.text(text, this.margin, this.yOffset);
       this.yOffset += this.lineHeight;
-    });
-
-    this.yOffset += 3;
+    }
   }
 
   private addNumberedItem(number: number, text: string) {
