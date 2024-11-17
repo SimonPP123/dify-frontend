@@ -116,24 +116,25 @@ class PDFGenerator {
   }
 
   private addText(text: string, isBold: boolean = false) {
-    // Set font for the current text
     this.doc.setFont(isBold ? FONTS.BOLD.name : FONTS.REGULAR.name);
     
-    // Split text into lines that fit within the page width
+    // Improved text wrapping with maxWidth option
     const lines = this.doc.splitTextToSize(text, this.pageWidth);
     
-    // Check if we need a new page
-    lines.forEach((line: string, index: number) => {
+    lines.forEach((line: string) => {
       if (this.yOffset > this.doc.internal.pageSize.height - this.margin) {
         this.doc.addPage();
         this.yOffset = this.margin;
       }
       
-      this.doc.text(line, this.margin, this.yOffset);
+      // Use maxWidth option for better text wrapping
+      this.doc.text(line, this.margin, this.yOffset, {
+        maxWidth: this.pageWidth,
+        align: 'left'
+      });
       this.yOffset += this.lineHeight;
     });
 
-    // Add some spacing after the text block
     this.yOffset += 3;
   }
 
@@ -316,3 +317,37 @@ export const generateDOCX = (output: string[], questions: string[], summary?: st
     throw error;
   }
 };
+
+const opt = {
+  margin: [20, 20, 20, 20],
+  autoPaging: 'text',
+  html2canvas: {
+    scale: 0.4
+  }
+};
+
+function addWrappedText({
+  text, 
+  textWidth, 
+  doc, 
+  fontSize = 10, 
+  fontType = 'normal', 
+  lineSpacing = 7, 
+  xPosition = 10, 
+  initialYPosition = 10
+}) {
+  const lines = doc.splitTextToSize(text, textWidth);
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setFontType(fontType);
+  doc.setFontSize(fontSize);
+
+  let cursorY = initialYPosition;
+  lines.forEach(line => {
+    if (cursorY > pageHeight - 20) {
+      doc.addPage();
+      cursorY = 20;
+    }
+    doc.text(xPosition, cursorY, line);
+    cursorY += lineSpacing;
+  });
+}
