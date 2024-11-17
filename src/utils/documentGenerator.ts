@@ -2,6 +2,7 @@
 
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
+import { UserOptions } from 'jspdf-autotable';
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, WidthType } from 'docx';
 import { RobotoRegularBase64, RobotoBoldBase64 } from '../../fonts';
 
@@ -95,15 +96,23 @@ const parseBoldText = (text: string): TextSegment[] => {
   return segments;
 };
 
+// Define interface for jsPDF with autoTable plugin
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: UserOptions) => void;
+  lastAutoTable?: {
+    finalY: number;
+  };
+}
+
 class PDFGenerator {
-  private doc: jsPDF;
+  private doc: jsPDFWithAutoTable;
   private yOffset: number;
   private pageWidth: number;
   private margin: number;
   private lineHeight: number;
 
   constructor() {
-    this.doc = new jsPDF();
+    this.doc = new jsPDF() as jsPDFWithAutoTable;
     this.margin = 20;
     this.lineHeight = 7;
     this.pageWidth = this.doc.internal.pageSize.width - (2 * this.margin);
@@ -198,12 +207,66 @@ class PDFGenerator {
         }
       });
 
-      // ... rest of the code remains the same ...
+      // Add summary section if provided
+      if (summary) {
+        // Add some spacing before summary
+        this.yOffset += 10;
+        
+        // Add summary header
+        this.addText('Summary', true);
+        this.yOffset += 5;
+
+        // Process summary content
+        const summaryItems = parseMarkdown(summary);
+        summaryItems.forEach(item => {
+          if (item.isHeader) {
+            // Add some spacing before headers
+            this.yOffset += 5;
+            this.addText(item.text, true);
+          } else {
+            const segments = parseBoldText(item.text);
+            segments.forEach(segment => {
+              this.addText(segment.text, segment.isBold);
+            });
+          }
+        });
+      }
+
+      // Process questions data
+      questions.forEach((questionSet, index) => {
+        const questionData = parseQuestionsData(questionSet);
+        if (!questionData.length) return;
+
+        this.yOffset += 10;
+        this.addText(`Questions Data ${index + 1}`, true);
+        this.yOffset += 5;
+
+        const headers = Object.keys(questionData[0]);
+        this.doc.autoTable({
+          head: [headers],
+          body: questionData.map(row => headers.map(header => row[header])),
+          startY: this.yOffset,
+          margin: { left: this.margin, right: this.margin },
+          styles: {
+            font: FONTS.REGULAR.name,
+            fontSize: 10
+          },
+          headStyles: {
+            font: FONTS.BOLD.name,
+            fontSize: 10,
+            fillColor: [200, 200, 200]
+          }
+        });
+
+        // Update yOffset after table using optional chaining
+        this.yOffset = (this.doc.lastAutoTable?.finalY ?? this.yOffset) + 10;
+      });
+
+      return this.doc;
     } catch (error) {
       console.error('Error generating PDF:', error);
       throw error;
     }
-    return this.doc;
   }
 }
 
