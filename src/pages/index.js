@@ -1,7 +1,6 @@
 import { useSession, signIn } from "next-auth/react";
 import Layout from '../components/Layout';
 import RunWorkflow from '../components/RunWorkflow';
-import Parameters from '../components/Parameters';
 import SignOut from '../components/SignOut';
 
 export default function Home() {
@@ -34,7 +33,6 @@ export default function Home() {
           <SignOut />
         </div>
         <RunWorkflow />
-        <Parameters />
       </div>
     </Layout>
   );
