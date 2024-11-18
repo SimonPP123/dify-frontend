@@ -14,12 +14,12 @@ export default function Home() {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[80vh]">
-          <h1 className="text-4xl font-bold mb-8">Welcome to Dify Frontend</h1>
+          <h1 className="text-4xl font-bold mb-8">Welcome to VN Market Research Application</h1>
           <button
             onClick={() => signIn('github')}
             className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            Sign in with GitHub
+            Sign in with Google
           </button>
         </div>
       </Layout>

@@ -6,7 +6,7 @@ export default function Layout({ children }) {
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto py-4 px-4">
           <h1 className="text-xl font-semibold text-gray-900">
-            Dify Frontend
+            VN Market Research
           </h1>
         </div>
       </header>

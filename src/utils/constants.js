@@ -13,7 +13,7 @@ export const SYSTEM_USER = {
 export const INPUT_FIELDS = {
   INSIGHTS_NUMBER: {
     variable: 'insights_number',
-    label: 'Number of Insights per question',
+    label: 'Number of Insights per Question',
     required: true,
     type: 'select',
     options: ['5', '10', '15', '20', '25']

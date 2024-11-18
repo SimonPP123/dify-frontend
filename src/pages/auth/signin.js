@@ -24,7 +24,7 @@ export default function SignIn({ providers }) {
   return (
     <Layout>
       <div className="flex flex-col items-center justify-center min-h-[80vh]">
-        <h1 className="text-4xl font-bold mb-8">Sign in to Dify Frontend</h1>
+        <h1 className="text-4xl font-bold mb-8">Sign in to VN Market Research Application</h1>
         {error && <ErrorMessage message={error} className="mb-4" />}
         {Object.values(providers || {}).map((provider) => (
           <div key={provider.name}>
