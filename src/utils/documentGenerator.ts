@@ -70,24 +70,38 @@ const parseBoldText = (text: string): TextSegment[] => {
   let match;
 
   while ((match = boldPattern.exec(text)) !== null) {
+    // Add non-bold text before the match
     if (match.index > lastIndex) {
+      const plainText = text.slice(lastIndex, match.index).trim();
+      if (plainText) {
+        segments.push({
+          text: plainText,
+          isBold: false
+        });
+      }
+    }
+    
+    // Add bold text (Cyrillic-aware)
+    const boldText = match[1].trim();
+    if (boldText) {
       segments.push({
-        text: decodeURIComponent(escape(text.slice(lastIndex, match.index))),
-        isBold: false
+        text: boldText,
+        isBold: true
       });
     }
-    segments.push({
-      text: decodeURIComponent(escape(match[1])),
-      isBold: true
-    });
+    
     lastIndex = match.index + match[0].length;
   }
 
+  // Add remaining non-bold text
   if (lastIndex < text.length) {
-    segments.push({
-      text: decodeURIComponent(escape(text.slice(lastIndex))),
-      isBold: false
-    });
+    const remainingText = text.slice(lastIndex).trim();
+    if (remainingText) {
+      segments.push({
+        text: remainingText,
+        isBold: false
+      });
+    }
   }
 
   return segments;
@@ -140,14 +154,12 @@ class PDFGenerator {
 
   private addText(text: string, isBold: boolean = false) {
     try {
-      this.doc.setFont(
-        isBold ? FONTS.BOLD.name : FONTS.REGULAR.name,
-        isBold ? FONTS.BOLD.style : FONTS.REGULAR.style
-      );
+      this.doc.setFont(isBold ? FONTS.BOLD.name : FONTS.REGULAR.name);
       
-      const encodedText = decodeURIComponent(escape(text));
-      
-      const lines = this.doc.splitTextToSize(encodedText, this.pageWidth);
+      // Use proper text wrapping with font metrics
+      const lines = this.doc.splitTextToSize(text, this.pageWidth, {
+        fontName: isBold ? FONTS.BOLD.name : FONTS.REGULAR.name
+      });
       
       lines.forEach((line: string) => {
         if (this.yOffset > this.doc.internal.pageSize.height - this.margin) {
@@ -160,7 +172,7 @@ class PDFGenerator {
       });
     } catch (error) {
       console.error('Error adding text:', error);
-      // Fallback to direct text addition
+      // Fallback to simple text addition without wrapping
       this.doc.text(text, this.margin, this.yOffset);
       this.yOffset += this.lineHeight;
     }
