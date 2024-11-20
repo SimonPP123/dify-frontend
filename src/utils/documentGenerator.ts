@@ -251,14 +251,19 @@ class PDFGenerator {
 
   public generate(output: string[], questions: string[], summary?: string) {
     try {
-      // Process output content
+      // Process output content with consistent bold text handling
       output.forEach(text => {
         const match = text.match(/^(\d+)\.\s(.+)$/);
         if (match) {
           const [_, number, content] = match;
-          this.addNumberedItem(parseInt(number), content);
+          // Parse the content for bold text
+          const segments = parseBoldText(content);
+          this.addNumberedItemWithBold(parseInt(number), segments);
         } else {
-          this.addText(text);
+          const segments = parseBoldText(text);
+          segments.forEach(segment => {
+            this.addText(segment.text, segment.isBold);
+          });
         }
       });
 
@@ -322,6 +327,40 @@ class PDFGenerator {
       console.error('Error generating PDF:', error);
       throw error;
     }
+  }
+
+  // New method to handle numbered items with bold text
+  private addNumberedItemWithBold(number: number, segments: TextSegment[]) {
+    const numberWidth = this.doc.getTextWidth(`${number}. `);
+    const textWidth = this.pageWidth - numberWidth;
+    
+    // Add the number
+    this.doc.setFont(FONTS.BOLD.name);
+    this.doc.text(`${number}.`, this.margin, this.yOffset);
+    
+    // Calculate total width for the segments
+    let currentX = this.margin + numberWidth;
+    let currentY = this.yOffset;
+    
+    segments.forEach(segment => {
+      this.doc.setFont(
+        segment.isBold ? FONTS.BOLD.name : FONTS.REGULAR.name,
+        segment.isBold ? FONTS.BOLD.style : FONTS.REGULAR.style
+      );
+      
+      const lines = this.doc.splitTextToSize(segment.text, textWidth);
+      lines.forEach((line: string, index: number) => {
+        if (currentY > this.doc.internal.pageSize.height - this.margin) {
+          this.doc.addPage();
+          currentY = this.margin;
+        }
+        
+        this.doc.text(line, currentX, currentY);
+        currentY += this.lineHeight;
+      });
+    });
+    
+    this.yOffset = currentY + 3;
   }
 }
 
