@@ -8,6 +8,7 @@ export const useDifyAPI = () => {
   const [currentWorkflowId, setCurrentWorkflowId] = useState(null);
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState('');
+  const [completedNodes, setCompletedNodes] = useState(new Set());
   const abortController = useRef(null);
 
   const cleanupRequest = useCallback(() => {
@@ -24,18 +25,18 @@ export const useDifyAPI = () => {
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 1000;
 
-  const WORKFLOW_STEPS = {
-    'workflow_started': { weight: 5, message: 'Starting workflow' },
-    'Start': { weight: 5, message: 'Initializing' },
-    'CSV TO JSON': { weight: 10, message: 'Converting CSV to JSON' },
-    'JSON ARRAY': { weight: 10, message: 'Processing JSON data' },
-    'IF/ELSE': { weight: 10, message: 'Analyzing data' },
-    'Въпрос': { weight: 15, message: 'Processing question' },
-    'Агент 1': { weight: 20, message: 'Analyzing responses' },
-    'Агент 2': { weight: 20, message: 'Generating insights' },
-    'Extract Question Insights': { weight: 5, message: 'Extracting insights' },
-    'Extract Summary Insights': { weight: 5, message: 'Generating summary' },
-    'workflow_finished': { weight: 5, message: 'Completing workflow' }
+  const WORKFLOW_NODES = {
+    'workflow_started': { weight: 5, label: 'Starting workflow...' },
+    'Start': { weight: 5, label: 'Initializing...' },
+    'CSV TO JSON': { weight: 10, label: 'Converting CSV to JSON...' },
+    'JSON ARRAY': { weight: 10, label: 'Processing JSON data...' },
+    'IF/ELSE': { weight: 10, label: 'Analyzing data...' },
+    'Въпрос': { weight: 15, label: 'Processing question...' },
+    'Агент 1': { weight: 20, label: 'Analyzing responses...' },
+    'Агент 2': { weight: 20, label: 'Generating insights...' },
+    'Extract Question Insights': { weight: 5, label: 'Extracting insights...' },
+    'Extract Summary Insights': { weight: 5, label: 'Generating summary...' },
+    'End': { weight: 5, label: 'Completing workflow...' }
   };
 
   const sendMessageWithRetry = async (payload, retryCount = 0) => {
@@ -106,6 +107,8 @@ export const useDifyAPI = () => {
             
             switch(event.event) {
               case 'workflow_started':
+                setProgress(5);
+                setCurrentStep(WORKFLOW_NODES.workflow_started.label);
                 if (event.workflow_run_id) {
                   setCurrentWorkflowId(event.workflow_run_id);
                   setStreamingResponse(prev => prev + 'Workflow started...\n');
@@ -114,17 +117,28 @@ export const useDifyAPI = () => {
               
               case 'node_started':
                 if (event.data?.title) {
-                  setStreamingResponse(prev => prev + `Processing: ${event.data.title}...\n`);
+                  const nodeTitle = event.data.title;
+                  const node = WORKFLOW_NODES[nodeTitle];
+                  if (node) {
+                    setCurrentStep(node.label);
+                    if (nodeTitle.includes('Въпрос') || nodeTitle.includes('Агент')) {
+                      setProgress(prev => Math.min(prev + (node.weight / 3), 95));
+                    } else {
+                      setProgress(prev => Math.min(prev + node.weight, 95));
+                    }
+                  }
                 }
                 break;
               
               case 'node_finished':
-                if (event.data?.outputs?.text) {
-                  setStreamingResponse(prev => prev + event.data.outputs.text + '\n');
+                if (event.data?.title) {
+                  setCompletedNodes(prev => new Set([...prev, event.data.title]));
                 }
                 break;
               
               case 'workflow_finished':
+                setProgress(100);
+                setCurrentStep('Completed');
                 setStreamingResponse(prev => prev + 'Workflow completed.\n');
                 setLoading(false);
                 if (event.data?.outputs) {

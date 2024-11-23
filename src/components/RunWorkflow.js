@@ -318,6 +318,16 @@ export default function RunWorkflow() {
             {!session ? 'Please sign in' : loading ? 'Processing...' : 'Run Workflow'}
           </button>
 
+          {hasValidData && (
+            <div className="mt-2">
+              <DownloadButtons 
+                output={fullResponse.output ? (Array.isArray(fullResponse.output) ? fullResponse.output : [fullResponse.output]) : []}
+                questions={fullResponse.questions ? (Array.isArray(fullResponse.questions) ? fullResponse.questions : [fullResponse.questions]) : []}
+                summary={fullResponse.summary}
+              />
+            </div>
+          )}
+
           {loading && (
             <div className="flex items-center justify-center space-x-2 text-gray-600">
               <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
