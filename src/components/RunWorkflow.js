@@ -171,14 +171,42 @@ export default function RunWorkflow() {
     try {
       const text = await file.text();
       const lines = text.split('\n');
-      const headers = lines[0].split(',');
       
+      // Parse CSV lines properly handling quoted fields
+      const parseCSVLine = (line) => {
+        const fields = [];
+        let field = '';
+        let inQuotes = false;
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          
+          if (char === '"') {
+            inQuotes = !inQuotes;
+            continue;
+          }
+          
+          if (char === ',' && !inQuotes) {
+            fields.push(field.trim());
+            field = '';
+            continue;
+          }
+          
+          field += char;
+        }
+        
+        // Push the last field
+        fields.push(field.trim());
+        return fields;
+      };
+
+      const headers = parseCSVLine(lines[0]);
       const markdownTable = [
         `| ${headers.join(' | ')} |`,
         `| ${headers.map(() => '---').join(' | ')} |`,
         ...lines.slice(1)
           .filter(line => line.trim())
-          .map(line => `| ${line.split(',').join(' | ')} |`)
+          .map(line => `| ${parseCSVLine(line).join(' | ')} |`)
       ].join('\n');
 
       setValue('file_upload', markdownTable);
