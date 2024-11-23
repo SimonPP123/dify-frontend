@@ -342,18 +342,9 @@ export const generateDOCX = (output: string[], questions: string[], summary?: st
     const children: any[] = [];
 
     // Process output sections
-    output.forEach((section, index) => {
-      console.log(`Processing output section ${index + 1}`);
-      children.push(
-        new Paragraph({
-          children: [new TextRun({ text: `Question ${index + 1}`, bold: true, size: 32 })],
-          heading: HeadingLevel.HEADING_1,
-          spacing: { after: 400 }
-        })
-      );
-
+    output.forEach((section) => {
       const contentItems = parseMarkdown(section);
-      console.log(`Found ${contentItems.length} content items in section ${index + 1}`);
+      console.log(`Found ${contentItems.length} content items in section`);
       contentItems.forEach(item => {
         const segments = parseBoldText(item.text);
         children.push(
