@@ -475,7 +475,7 @@ function addWrappedText({
   initialYPosition = 10
 }) {
   const lines = doc.splitTextToSize(text, textWidth);
-  const pageHeight = doc.internal.pageSize.height;
+  const pageHeight = doc.internal.pageSize.height; 
   doc.setFontType(fontType);
   doc.setFontSize(fontSize);
 

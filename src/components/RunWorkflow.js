@@ -359,7 +359,7 @@ export default function RunWorkflow() {
         <WorkflowProgress
           state={getWorkflowState() || {
             workflowRunId: currentWorkflowId,
-            status: loading ? 'running' : 'pending',
+            status: loading ? 'running' : 'pending', 
             progress: {
               currentNode: '',
               completedNodes: [],

@@ -173,7 +173,7 @@ export const useDifyAPI = () => {
       return { success: true };
     } catch (error) {
       setError(error.message || 'Unknown error');
-      setLoading(false);
+      setLoading(false); 
       throw error;
     }
   }, []);

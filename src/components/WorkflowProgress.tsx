@@ -19,22 +19,7 @@ export const WorkflowProgress: React.FC<WorkflowProgressProps> = ({
   return (
     <div className="mt-4 space-y-4">
       <div className="bg-gray-50 p-4 rounded-md">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="text-lg font-medium">Progress</h3>
-          <span className="text-sm text-gray-600">{progress}%</span>
-        </div>
-        
-        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4">
-          <div 
-            className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        <div className="text-sm text-gray-600 mb-4">
-          Current step: {currentStep || 'Initializing...'}
-        </div>
-
+        <h3 className="text-lg font-medium mb-2">Progress</h3>
         <div className="whitespace-pre-wrap font-mono text-sm">
           {streamingResponse || 'Waiting for response...'}
         </div>
