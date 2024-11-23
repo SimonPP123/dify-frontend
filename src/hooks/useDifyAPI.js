@@ -108,21 +108,27 @@ export const useDifyAPI = () => {
             switch(event.event) {
               case 'workflow_started':
                 setProgress(5);
-                setCurrentStep(WORKFLOW_NODES.workflow_started.label);
-                if (event.workflow_run_id) {
-                  setCurrentWorkflowId(event.workflow_run_id);
-                  setStreamingResponse(prev => prev + 'Workflow started...\n');
-                }
+                setCurrentStep('Starting workflow...');
+                setStreamingResponse(prev => prev + 'Workflow started...\n');
                 break;
               
               case 'node_started':
                 if (event.data?.title) {
                   const nodeTitle = event.data.title;
                   const node = WORKFLOW_NODES[nodeTitle];
+                  
                   if (node) {
                     setCurrentStep(node.label);
-                    if (nodeTitle.includes('Въпрос') || nodeTitle.includes('Агент')) {
-                      setProgress(prev => Math.min(prev + (node.weight / 3), 95));
+                    setStreamingResponse(prev => prev + `Processing: ${nodeTitle}...\n`);
+                    
+                    if (nodeTitle.startsWith('Въпрос')) {
+                      const questionMatch = nodeTitle.match(/Въпрос_(\d+)/);
+                      if (questionMatch) {
+                        const questionNum = parseInt(questionMatch[1]);
+                        setProgress(prev => Math.min(40 + (questionNum * 15), 90));
+                      }
+                    } else if (nodeTitle.startsWith('Агент')) {
+                      setProgress(prev => Math.min(prev + 10, 95));
                     } else {
                       setProgress(prev => Math.min(prev + node.weight, 95));
                     }
@@ -132,7 +138,12 @@ export const useDifyAPI = () => {
               
               case 'node_finished':
                 if (event.data?.title) {
-                  setCompletedNodes(prev => new Set([...prev, event.data.title]));
+                  const nodeTitle = event.data.title;
+                  setCompletedNodes(prev => new Set([...prev, nodeTitle]));
+                  
+                  if (nodeTitle.startsWith('Агент')) {
+                    setProgress(prev => Math.min(prev + 10, 95));
+                  }
                 }
                 break;
               
