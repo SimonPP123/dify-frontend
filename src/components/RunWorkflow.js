@@ -95,7 +95,11 @@ export default function RunWorkflow() {
     fetchWorkflowResult,
     isConnected,
     connectionError,
-    checkConnection
+    checkConnection,
+    progress,
+    setProgress,
+    currentStep,
+    setCurrentStep
   } = useDifyAPI();
 
   const getWorkflowState = useCallback(() => {
@@ -365,6 +369,8 @@ export default function RunWorkflow() {
           }}
           streamingResponse={streamingResponse}
           error={error}
+          progress={progress}
+          currentStep={currentStep}
         />
       )}
 

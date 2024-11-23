@@ -6,6 +6,8 @@ export const useDifyAPI = () => {
   const [streamingResponse, setStreamingResponse] = useState('');
   const [fullResponse, setFullResponse] = useState(null);
   const [currentWorkflowId, setCurrentWorkflowId] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [currentStep, setCurrentStep] = useState('');
   const abortController = useRef(null);
 
   const cleanupRequest = useCallback(() => {
@@ -21,6 +23,20 @@ export const useDifyAPI = () => {
 
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 1000;
+
+  const WORKFLOW_STEPS = {
+    'workflow_started': { weight: 5, message: 'Starting workflow' },
+    'Start': { weight: 5, message: 'Initializing' },
+    'CSV TO JSON': { weight: 10, message: 'Converting CSV to JSON' },
+    'JSON ARRAY': { weight: 10, message: 'Processing JSON data' },
+    'IF/ELSE': { weight: 10, message: 'Analyzing data' },
+    'Въпрос': { weight: 15, message: 'Processing question' },
+    'Агент 1': { weight: 20, message: 'Analyzing responses' },
+    'Агент 2': { weight: 20, message: 'Generating insights' },
+    'Extract Question Insights': { weight: 5, message: 'Extracting insights' },
+    'Extract Summary Insights': { weight: 5, message: 'Generating summary' },
+    'workflow_finished': { weight: 5, message: 'Completing workflow' }
+  };
 
   const sendMessageWithRetry = async (payload, retryCount = 0) => {
     try {
