@@ -6,12 +6,6 @@ import { UserOptions } from 'jspdf-autotable';
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, HeadingLevel, WidthType } from 'docx';
 import { RobotoRegularBase64, RobotoBoldBase64 } from '../../fonts';
 
-interface QuestionData {
-  Въпрос: string;
-  Отговори: string;
-  [key: string]: string;
-}
-
 interface MarkdownItem {
   text: string;
   isHeader: boolean;
@@ -43,15 +37,6 @@ const getHeadingLevel = (level: number): typeof HeadingLevel[keyof typeof Headin
     case 5: return HeadingLevel.HEADING_5;
     case 6: return HeadingLevel.HEADING_6;
     default: return HeadingLevel.HEADING_1;
-  }
-};
-
-const parseQuestionsData = (questionString: string): QuestionData[] => {
-  try {
-    return JSON.parse(questionString);
-  } catch (error) {
-    console.error('Error parsing question data:', error);
-    return [];
   }
 };
 
@@ -249,7 +234,7 @@ class PDFGenerator {
     return y + 7; // Return next Y position
   }
 
-  public generate(output: string[], questions: string[], summary?: string) {
+  public generate(output: string[], summary?: string) {
     try {
       // Process output content
       output.forEach(text => {
@@ -287,36 +272,6 @@ class PDFGenerator {
         });
       }
 
-      // Process questions data
-      questions.forEach((questionSet, index) => {
-        const questionData = parseQuestionsData(questionSet);
-        if (!questionData.length) return;
-
-        this.yOffset += 10;
-        this.addText(`Questions Data ${index + 1}`, true);
-        this.yOffset += 5;
-
-        const headers = Object.keys(questionData[0]);
-        this.doc.autoTable({
-          head: [headers],
-          body: questionData.map(row => headers.map(header => row[header])),
-          startY: this.yOffset,
-          margin: { left: this.margin, right: this.margin },
-          styles: {
-            font: FONTS.REGULAR.name,
-            fontSize: 10
-          },
-          headStyles: {
-            font: FONTS.BOLD.name,
-            fontSize: 10,
-            fillColor: [200, 200, 200]
-          }
-        });
-
-        // Update yOffset after table using optional chaining
-        this.yOffset = (this.doc.lastAutoTable?.finalY ?? this.yOffset) + 10;
-      });
-
       return this.doc;
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -326,15 +281,14 @@ class PDFGenerator {
 }
 
 // Export function
-export const generatePDF = (output: string[], questions: string[], summary?: string) => {
+export const generatePDF = (output: string[], summary?: string) => {
   const generator = new PDFGenerator();
-  return generator.generate(output, questions, summary);
+  return generator.generate(output, summary);
 };
 
-export const generateDOCX = (output: string[], questions: string[], summary?: string) => {
+export const generateDOCX = (output: string[], summary?: string) => {
   console.log('DOCX Generator - Starting generation with:', {
     outputLength: output.length,
-    questionsLength: questions.length,
     hasSummary: !!summary
   });
 
@@ -402,49 +356,6 @@ export const generateDOCX = (output: string[], questions: string[], summary?: st
         );
       });
     }
-
-    // Process questions data
-    questions.forEach((questionSet, index) => {
-      console.log(`Processing question set ${index + 1}`);
-      const questionData = parseQuestionsData(questionSet);
-      if (!questionData.length) {
-        console.log(`No valid question data found in set ${index + 1}`);
-        return;
-      }
-
-      children.push(
-        new Paragraph({
-          children: [new TextRun({ text: `Questions Data ${index + 1}`, bold: true, size: 32 })],
-          heading: HeadingLevel.HEADING_1,
-          spacing: { before: 400, after: 200 }
-        })
-      );
-
-      const headers = Object.keys(questionData[0]);
-      const table = new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        rows: [
-          new TableRow({
-            tableHeader: true,
-            children: headers.map(header => 
-              new TableCell({
-                children: [new Paragraph({ children: [new TextRun({ text: header, bold: true })] })]
-              })
-            )
-          }),
-          ...questionData.map(row => 
-            new TableRow({
-              children: headers.map(header => 
-                new TableCell({
-                  children: [new Paragraph({ children: [new TextRun({ text: String(row[header]) })] })]
-                })
-              )
-            })
-          )
-        ]
-      });
-      children.push(table);
-    });
 
     console.log('DOCX Generation completed');
     return new Document({

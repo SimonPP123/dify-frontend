@@ -5,12 +5,11 @@ import { generatePDF, generateDOCX } from '../utils/documentGenerator';
 
 interface DownloadButtonsProps {
   output: string[];
-  questions: string[];
   summary?: string;
 }
 
-export const DownloadButtons: React.FC<DownloadButtonsProps> = ({ output, questions, summary }) => {
-  const hasData = output?.length > 0 || questions?.length > 0;
+export const DownloadButtons: React.FC<DownloadButtonsProps> = ({ output, summary }) => {
+  const hasData = output?.length > 0;
 
   const validateData = (data: any[]) => {
     return Array.isArray(data) ? data : [];
@@ -20,15 +19,13 @@ export const DownloadButtons: React.FC<DownloadButtonsProps> = ({ output, questi
     if (!hasData) return;
     try {
       const validatedOutput = validateData(output);
-      const validatedQuestions = validateData(questions);
       
       console.log('Validated PDF data:', {
         output: validatedOutput,
-        questions: validatedQuestions,
         summary
       });
       
-      const doc = generatePDF(validatedOutput, validatedQuestions, summary);
+      const doc = generatePDF(validatedOutput, summary);
       const blob = doc.output('blob');
       saveAs(blob, 'analysis-report.pdf');
     } catch (error) {
@@ -40,15 +37,13 @@ export const DownloadButtons: React.FC<DownloadButtonsProps> = ({ output, questi
     if (!hasData) return;
     try {
       const validatedOutput = validateData(output);
-      const validatedQuestions = validateData(questions);
       
       console.log('Validated DOCX data:', {
         output: validatedOutput,
-        questions: validatedQuestions,
         summary
       });
       
-      const doc = generateDOCX(validatedOutput, validatedQuestions, summary);
+      const doc = generateDOCX(validatedOutput, summary);
       const blob = await Packer.toBlob(doc);
       saveAs(blob, 'analysis-report.docx');
     } catch (error) {

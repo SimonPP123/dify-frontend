@@ -380,7 +380,6 @@ export default function RunWorkflow() {
             <h3 className="text-xl">Final Result:</h3>
             <DownloadButtons 
               output={fullResponse.output ? (Array.isArray(fullResponse.output) ? fullResponse.output : [fullResponse.output]) : []}
-              questions={fullResponse.questions ? (Array.isArray(fullResponse.questions) ? fullResponse.questions : [fullResponse.questions]) : []}
               summary={fullResponse.summary}
             />
           </div>
