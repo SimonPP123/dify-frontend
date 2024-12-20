@@ -116,10 +116,13 @@ export default function RunWorkflow() {
     setFinalResponse(null);
     
     try {
+      console.log('Form data:', data);
       const validatedInputs = validateInputs(data, session.user.id);
       
       validatedInputs['sys.app_id'] = data.selectedApp;
       validatedInputs['sys.user_id'] = session.user.id;
+      
+      console.log('Sending request with inputs:', validatedInputs);
       
       const result = await sendMessage({
         inputs: validatedInputs,
@@ -130,10 +133,17 @@ export default function RunWorkflow() {
       console.log('Initial API response:', result);
     } catch (err) {
       console.error('Submission error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        response: err.response
+      });
+      
       setError(err.message || 'Failed to process workflow');
       
       if (err.response) {
-        console.error('Error response:', await err.response.text());
+        const errorText = await err.response.text();
+        console.error('Error response:', errorText);
       }
     }
   };

@@ -130,18 +130,28 @@ export const useDifyAPI = () => {
     setFullResponse(null);
 
     try {
+      console.log('Sending workflow request:', params);
+      
       const response = await fetch('/api/workflows/run', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(params),
+        body: JSON.stringify({
+          ...params,
+          response_mode: 'streaming',
+        }),
         signal: abortController.current.signal
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `API Error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Workflow API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
       }
 
       const reader = response.body?.getReader();

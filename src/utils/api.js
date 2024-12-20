@@ -1,7 +1,9 @@
-const API_URL = process.env.DIFY_API_URL;
-const API_KEY = process.env.DIFY_API_KEY;
+const API_URL = process.env.NEXT_PUBLIC_DIFY_API_URL || 'https://dify.analyserinsights.com/api';
+const API_KEY = process.env.NEXT_PUBLIC_DIFY_API_KEY;
 
 export async function fetchDifyAPI(endpoint, options = {}) {
+  console.log('Making API request to:', `${API_URL}${endpoint}`);
+  
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
@@ -12,7 +14,13 @@ export async function fetchDifyAPI(endpoint, options = {}) {
   });
 
   if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
+    const errorText = await response.text();
+    console.error('API Error:', {
+      status: response.status,
+      url: response.url,
+      error: errorText
+    });
+    throw new Error(`API error: ${response.status} - ${errorText}`);
   }
 
   return response.json();
