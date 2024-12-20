@@ -140,7 +140,8 @@ export const useDifyAPI = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to start workflow');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API Error: ${response.status}`);
       }
 
       const reader = response.body?.getReader();

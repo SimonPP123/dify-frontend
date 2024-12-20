@@ -90,7 +90,12 @@ export default async function handler(
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    const response = await fetch(`${process.env.DIFY_API_URL}/workflows/run`, {
+    const apiUrl = process.env.DIFY_API_URL?.trim().replace(/\/$/, '');
+    if (!apiUrl) {
+      throw new Error('DIFY_API_URL environment variable is not configured');
+    }
+
+    const response = await fetch(`${apiUrl}/workflows/run`, {
       method: 'POST',
       signal: controller.signal,
       headers: {

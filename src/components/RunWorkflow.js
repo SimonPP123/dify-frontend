@@ -118,6 +118,9 @@ export default function RunWorkflow() {
     try {
       const validatedInputs = validateInputs(data, session.user.id);
       
+      validatedInputs['sys.app_id'] = data.selectedApp;
+      validatedInputs['sys.user_id'] = session.user.id;
+      
       const result = await sendMessage({
         inputs: validatedInputs,
         response_mode: 'streaming',
@@ -128,6 +131,10 @@ export default function RunWorkflow() {
     } catch (err) {
       console.error('Submission error:', err);
       setError(err.message || 'Failed to process workflow');
+      
+      if (err.response) {
+        console.error('Error response:', await err.response.text());
+      }
     }
   };
 
