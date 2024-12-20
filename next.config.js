@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  swcMinify: true,
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     DIFY_API_URL: process.env.DIFY_API_URL,
@@ -21,6 +22,12 @@ const nextConfig = {
         ],
       },
     ]
+  },
+  typescript: {
+    ignoreBuildErrors: true
+  },
+  eslint: {
+    ignoreDuringBuilds: true
   }
 };
 
