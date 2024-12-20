@@ -10,6 +10,8 @@ const nextConfig = {
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET
   },
+  assetPrefix: process.env.NODE_ENV === 'production' ? 'https://dify.analyserinsights.com' : '',
+  basePath: '',
   async headers() {
     return [
       {
@@ -22,6 +24,17 @@ const nextConfig = {
         ],
       },
     ]
+  },
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    return config;
   },
   typescript: {
     ignoreBuildErrors: true
