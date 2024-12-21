@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3002",
     "build": "next build",
-    "start": "PORT=3002 node .next/standalone/server.js",
+    "start": "cross-env PORT=3002 node server.js",
     "lint": "next lint"
   },
   "dependencies": {
@@ -13,6 +13,7 @@
     "@tailwindcss/forms": "^0.5.9",
     "@types/formidable": "^3.4.5",
     "axios": "^1.7.7",
+    "cross-env": "^7.0.3",
     "css-loader": "^7.1.2",
     "docx": "^8.5.0",
     "file-saver": "^2.0.5",
