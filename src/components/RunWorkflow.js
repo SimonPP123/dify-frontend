@@ -313,7 +313,7 @@ export default function RunWorkflow() {
           errors={errors}
           handleFileRead={handleFileRead}
         />
-        {csvData && <CSVPreview csvData={csvData} />}
+        {csvData && <CSVPreview csvData={csvData} isLoading={loading} />}
 
         <div className="space-y-4">
           <button
