@@ -103,14 +103,9 @@ export default function RunWorkflow() {
     streamingResponse,
     currentWorkflowId,
     fullResponse,
-    fetchWorkflowResult,
-    isConnected,
-    connectionError,
-    checkConnection,
     progress,
-    setProgress,
     currentStep,
-    setCurrentStep
+    completedNodes
   } = useDifyAPI();
 
   const [csvData, setCsvData] = useState({ headers: [], rows: [] });
@@ -131,6 +126,8 @@ export default function RunWorkflow() {
     setFinalResponse(null);
     
     try {
+      console.log('Submitting form with data:', data);
+      
       const validatedInputs = validateInputs({
         ...data,
         selectedColumns,
@@ -141,8 +138,13 @@ export default function RunWorkflow() {
         }))
       }, session.user.id);
       
+      console.log('Validated inputs:', validatedInputs);
+      
       const result = await sendMessage({
-        inputs: validatedInputs,
+        inputs: {
+          ...validatedInputs,
+          'sys.app_id': DIFY_APPS.APP_1.ID,
+        },
         response_mode: 'streaming',
         user: session.user.id
       });
@@ -388,23 +390,23 @@ export default function RunWorkflow() {
 
       {currentWorkflowId && (
         <WorkflowProgress
-          state={getWorkflowState() || {
+          state={{
             workflowRunId: currentWorkflowId,
-            status: loading ? 'running' : 'pending', 
+            status: loading ? 'running' : 'pending',
             progress: {
-              currentNode: '',
-              completedNodes: [],
+              currentNode: currentStep,
+              completedNodes: Array.from(completedNodes),
               outputs: [],
               lastUpdateTime: Date.now()
             },
             startTime: Date.now(),
             lastActiveTime: Date.now(),
             inputs: {},
-            streamingResponse: '',
+            streamingResponse: streamingResponse,
             retryCount: 0,
             metadata: {
               userId: session?.user?.id || '',
-              appId: '',
+              appId: DIFY_APPS.APP_1.ID,
               finishedAt: null
             }
           }}

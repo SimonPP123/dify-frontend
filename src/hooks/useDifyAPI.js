@@ -91,82 +91,90 @@ export const useDifyAPI = () => {
       let buffer = '';
 
       while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        try {
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log('Stream completed');
+            break;
+          }
 
-        buffer += decoder.decode(value, { stream: true });
-        const messages = buffer.split('\n\n');
-        buffer = messages.pop() || '';
+          buffer += decoder.decode(value, { stream: true });
+          console.log('Received chunk:', buffer);
+          const messages = buffer.split('\n\n');
+          buffer = messages.pop() || '';
 
-        for (const message of messages) {
-          const dataMatch = message.match(/^data: (.+)$/m);
-          if (!dataMatch) continue;
-          
-          try {
-            const event = JSON.parse(dataMatch[1]);
+          for (const message of messages) {
+            const dataMatch = message.match(/^data: (.+)$/m);
+            if (!dataMatch) continue;
             
-            switch(event.event) {
-              case 'workflow_started':
-                setProgress(5);
-                setCurrentStep('Starting workflow...');
-                setStreamingResponse(prev => prev + 'Workflow started...\n');
-                break;
+            try {
+              const event = JSON.parse(dataMatch[1]);
               
-              case 'node_started':
-                if (event.data?.title) {
-                  const nodeTitle = event.data.title;
-                  const node = WORKFLOW_NODES[nodeTitle];
-                  
-                  if (node) {
+              switch(event.event) {
+                case 'workflow_started':
+                  if (event.workflow_run_id) {
+                    console.log('Workflow started:', event.workflow_run_id);
+                    setCurrentWorkflowId(event.workflow_run_id);
+                    setProgress(5);
+                    setCurrentStep('Starting workflow...');
+                    setStreamingResponse('Workflow started...\n');
+                  }
+                  break;
+                
+                case 'node_started':
+                  if (event.data?.title) {
+                    const nodeTitle = event.data.title;
+                    const node = WORKFLOW_NODES[nodeTitle] || { 
+                      weight: 10, 
+                      label: `Processing ${nodeTitle}...` 
+                    };
+                    
+                    console.log('Node started:', nodeTitle);
                     setCurrentStep(node.label);
-                    setStreamingResponse(prev => prev + `Processing: ${nodeTitle}...\n`);
+                    setStreamingResponse(prev => prev + `${node.label}\n`);
                     
                     if (nodeTitle.startsWith('Въпрос')) {
-                      const questionMatch = nodeTitle.match(/Въпрос_(\d+)/);
-                      if (questionMatch) {
-                        const questionNum = parseInt(questionMatch[1]);
-                        setProgress(prev => Math.min(40 + (questionNum * 15), 90));
-                      }
-                    } else if (nodeTitle.startsWith('Агент')) {
-                      setProgress(prev => Math.min(prev + 10, 95));
+                      const questionNum = parseInt(nodeTitle.match(/\d+/)?.[0] || '0');
+                      setProgress(prev => Math.min(40 + (questionNum * 15), 90));
                     } else {
                       setProgress(prev => Math.min(prev + node.weight, 95));
                     }
                   }
-                }
-                break;
-              
-              case 'node_finished':
-                if (event.data?.title) {
-                  const nodeTitle = event.data.title;
-                  setCompletedNodes(prev => new Set([...prev, nodeTitle]));
-                  
-                  if (nodeTitle.startsWith('Агент')) {
-                    setProgress(prev => Math.min(prev + 10, 95));
+                  break;
+                
+                case 'node_finished':
+                  if (event.data?.title) {
+                    const nodeTitle = event.data.title;
+                    setCompletedNodes(prev => new Set([...prev, nodeTitle]));
+                    if (event.data?.outputs?.text) {
+                      setStreamingResponse(prev => prev + event.data.outputs.text + '\n');
+                    }
                   }
-                }
-                break;
-              
-              case 'workflow_finished':
-                setProgress(100);
-                setCurrentStep('Completed');
-                setStreamingResponse(prev => prev + 'Workflow completed.\n');
-                setLoading(false);
-                if (event.data?.outputs) {
-                  setFullResponse(event.data.outputs);
-                }
-                return { success: true, data: event.data?.outputs || null };
-              
-              case 'error':
-                const errorMsg = event.data?.error || 'Unknown error';
-                setError(errorMsg);
-                setLoading(false);
-                throw new Error(errorMsg);
+                  break;
+                
+                case 'workflow_finished':
+                  setProgress(100);
+                  setCurrentStep('Completed');
+                  if (event.data?.outputs) {
+                    setFullResponse(event.data.outputs);
+                  }
+                  setLoading(false);
+                  break;
+                
+                case 'error':
+                  const errorMsg = event.data?.error || 'Unknown error';
+                  setError(errorMsg);
+                  setLoading(false);
+                  throw new Error(errorMsg);
+              }
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+              throw e;
             }
-          } catch (e) {
-            console.error('Error parsing SSE data:', e);
-            throw e;
           }
+        } catch (error) {
+          console.error('Error reading stream:', error);
+          throw error;
         }
       }
 
@@ -185,6 +193,11 @@ export const useDifyAPI = () => {
     setError,
     streamingResponse,
     currentWorkflowId,
-    fullResponse
+    fullResponse,
+    progress,
+    setProgress,
+    currentStep,
+    setCurrentStep,
+    completedNodes
   };
 };
