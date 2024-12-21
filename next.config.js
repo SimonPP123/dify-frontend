@@ -28,15 +28,7 @@ const nextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: true
-  },
-  async rewrites() {
-    return [
-      {
-        source: '/v1/:path*',
-        destination: `${process.env.DIFY_API_URL}/:path*`,
-      },
-    ];
-  },
+  }
 };
 
 module.exports = nextConfig; 
