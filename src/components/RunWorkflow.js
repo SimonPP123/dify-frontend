@@ -9,6 +9,7 @@ import { DIFY_APPS, INPUT_FIELDS } from '../utils/constants';
 import { WorkflowProgress } from './WorkflowProgress';
 import { WorkflowStateManager } from '../utils/WorkflowStateManager';
 import { DownloadButtons } from './DownloadButtons';
+import { CSVPreview } from './CSVPreview';
 
 const schema = yup.object().shape({
   insights_number: yup.string()
@@ -102,6 +103,8 @@ export default function RunWorkflow() {
     setCurrentStep
   } = useDifyAPI();
 
+  const [csvData, setCsvData] = useState(null);
+
   const getWorkflowState = useCallback(() => {
     if (!currentWorkflowId) return null;
     return WorkflowStateManager.getWorkflowState(currentWorkflowId);
@@ -176,7 +179,6 @@ export default function RunWorkflow() {
       const text = await file.text();
       const lines = text.split('\n');
       
-      // Parse CSV lines properly handling quoted fields
       const parseCSVLine = (line) => {
         const fields = [];
         let field = '';
@@ -199,18 +201,21 @@ export default function RunWorkflow() {
           field += char;
         }
         
-        // Push the last field
         fields.push(field.trim());
         return fields;
       };
 
       const headers = parseCSVLine(lines[0]);
+      const rows = lines.slice(1)
+        .filter(line => line.trim())
+        .map(line => parseCSVLine(line));
+
+      setCsvData({ headers, rows });
+
       const markdownTable = [
         `| ${headers.join(' | ')} |`,
         `| ${headers.map(() => '---').join(' | ')} |`,
-        ...lines.slice(1)
-          .filter(line => line.trim())
-          .map(line => `| ${parseCSVLine(line).join(' | ')} |`)
+        ...rows.map(row => `| ${row.join(' | ')} |`)
       ].join('\n');
 
       setValue('file_upload', markdownTable);
@@ -308,6 +313,7 @@ export default function RunWorkflow() {
           errors={errors}
           handleFileRead={handleFileRead}
         />
+        {csvData && <CSVPreview csvData={csvData} />}
 
         <div className="space-y-4">
           <button
