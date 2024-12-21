@@ -3,8 +3,8 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   distDir: '.next',
-  serverOptions: {
-    port: 3002
+  experimental: {
+    serverComponentsExternalPackages: [],
   },
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
