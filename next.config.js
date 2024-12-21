@@ -6,9 +6,6 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: [],
   },
-  server: {
-    port: 3002
-  },
   env: {
     PORT: '3002',
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
