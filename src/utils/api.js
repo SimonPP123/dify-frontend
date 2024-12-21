@@ -37,9 +37,9 @@ export const handleWorkflowResponse = (response) => {
 };
 
 export const API_ENDPOINTS = {
-  WORKFLOW_RUN: '/api/workflows/run',
-  WORKFLOW_STOP: (taskId) => `/api/workflows/tasks/${taskId}/stop`,
-  WORKFLOW_LOGS: '/api/workflows/logs',
-  PARAMETERS: '/api/parameters',
-  FILE_UPLOAD: '/api/files/upload'
+  WORKFLOW_RUN: '/v1/workflows/run',
+  WORKFLOW_STOP: (taskId) => `/v1/workflows/tasks/${taskId}/stop`,
+  WORKFLOW_LOGS: '/v1/workflows/logs',
+  PARAMETERS: '/v1/parameters',
+  FILE_UPLOAD: '/v1/files/upload'
 }; 
