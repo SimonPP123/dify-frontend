@@ -131,7 +131,7 @@ export const useDifyAPI = () => {
     setFullResponse(null);
 
     try {
-      const response = await fetch('/workflows/run', {
+      const response = await fetch('/api/workflows/run', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
