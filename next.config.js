@@ -3,6 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
   distDir: '.next',
+  serverOptions: {
+    port: 3002
+  },
   env: {
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     DIFY_API_URL: process.env.DIFY_API_URL,
