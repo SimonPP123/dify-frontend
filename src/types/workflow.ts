@@ -7,6 +7,8 @@ export interface WorkflowInputs {
   'sys.user_id': string;
   'sys.files'?: string[];
   selectedApp?: string;
+  selectedColumns: string[];
+  selectedQuestionOptions: QuestionSection[];
   [key: string]: any;
 }
 
@@ -58,4 +60,10 @@ export interface WorkflowEvent {
     error?: string;
     status?: WorkflowStatus;
   };
+}
+
+export interface QuestionSection {
+  question: string;
+  options: string[];
+  selectedOptions: string[];
 }

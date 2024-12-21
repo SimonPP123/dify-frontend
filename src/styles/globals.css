@@ -3,11 +3,41 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-rgb: 255, 255, 255;
+  --primary-color: #3B82F6;
+  --secondary-color: #10B981;
+  --error-color: #EF4444;
+  --background-color: #F3F4F6;
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
+/* Add these new styles for the CSV preview */
+.csv-preview-container {
+  @apply mt-6 bg-white rounded-lg shadow-sm p-4;
+}
+
+.csv-preview-table {
+  @apply min-w-full divide-y divide-gray-200;
+}
+
+.csv-preview-header {
+  @apply bg-gray-50;
+}
+
+.csv-preview-header th {
+  @apply px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider;
+}
+
+.csv-preview-body {
+  @apply bg-white divide-y divide-gray-200;
+}
+
+.csv-preview-body td {
+  @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900;
+}
+
+.csv-preview-row-even {
+  @apply bg-gray-50;
+}
+
+.csv-preview-button {
+  @apply mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors;
 }

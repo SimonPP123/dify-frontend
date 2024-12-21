@@ -9,6 +9,9 @@ import { DIFY_APPS, INPUT_FIELDS } from '../utils/constants';
 import { WorkflowProgress } from './WorkflowProgress';
 import { WorkflowStateManager } from '../utils/WorkflowStateManager';
 import { DownloadButtons } from './DownloadButtons';
+import { CSVPreview } from './CSVPreview';
+import { QuestionSelector } from './QuestionSelector';
+import { ColumnSelector } from './ColumnSelector';
 
 const schema = yup.object().shape({
   insights_number: yup.string()
@@ -21,7 +24,15 @@ const schema = yup.object().shape({
     .oneOf(['Български', 'English'], 'Please select a valid language')
     .required('Language is required'),
   selectedApp: yup.string().required('Please select an application'),
-  file_upload: yup.string().required('File content is required').max(1000000)
+  file_upload: yup.string().required('File content is required').max(1000000),
+  selectedColumns: yup.array().min(1, 'Please select at least one column').required('Column selection is required'),
+  selectedQuestionOptions: yup.array().of(
+    yup.object().shape({
+      question: yup.string().required(),
+      options: yup.array().of(yup.string()),
+      selectedOptions: yup.array().of(yup.string()).min(1, 'Please select at least one option')
+    })
+  )
 });
 
 const SelectField = ({ name, register, errors, options, label }) => (
@@ -102,6 +113,10 @@ export default function RunWorkflow() {
     setCurrentStep
   } = useDifyAPI();
 
+  const [csvData, setCsvData] = useState({ headers: [], rows: [] });
+  const [selectedColumns, setSelectedColumns] = useState([]);
+  const [questions, setQuestions] = useState([]);
+
   const getWorkflowState = useCallback(() => {
     if (!currentWorkflowId) return null;
     return WorkflowStateManager.getWorkflowState(currentWorkflowId);
@@ -116,7 +131,15 @@ export default function RunWorkflow() {
     setFinalResponse(null);
     
     try {
-      const validatedInputs = validateInputs(data, session.user.id);
+      const validatedInputs = validateInputs({
+        ...data,
+        selectedColumns,
+        selectedQuestionOptions: questions.map(q => ({
+          question: q.question,
+          options: q.options,
+          selectedOptions: q.selectedOptions
+        }))
+      }, session.user.id);
       
       const result = await sendMessage({
         inputs: validatedInputs,
@@ -176,41 +199,52 @@ export default function RunWorkflow() {
       const text = await file.text();
       const lines = text.split('\n');
       
-      // Parse CSV lines properly handling quoted fields
-      const parseCSVLine = (line) => {
-        const fields = [];
-        let field = '';
-        let inQuotes = false;
+      const parsedQuestions = [];
+      let currentQuestion = null;
+      
+      for (let i = 0; i < lines.length; i++) {
+        const columns = lines[i].split(',').map(col => col.trim());
+        console.log('Processing line:', i, 'Column 1:', columns[0], 'Column 2:', columns[1]);
         
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          
-          if (char === '"') {
-            inQuotes = !inQuotes;
-            continue;
+        // If line starts with "В" and has a number, it's a question
+        if (columns[0].match(/^В\d+/)) {
+          if (currentQuestion) {
+            parsedQuestions.push(currentQuestion);
           }
-          
-          if (char === ',' && !inQuotes) {
-            fields.push(field.trim());
-            field = '';
-            continue;
-          }
-          
-          field += char;
+          currentQuestion = {
+            question: columns[0],
+            options: [],
+            selectedOptions: []
+          };
+          console.log('New question found:', currentQuestion);
+        } 
+        // If column 2 has content and we have a current question, it's an option
+        else if (currentQuestion && columns[1] && columns[1] !== 'Total') {
+          currentQuestion.options.push(columns[1]);
+          console.log('Added option:', columns[1], 'to question:', currentQuestion.question);
         }
-        
-        // Push the last field
-        fields.push(field.trim());
-        return fields;
-      };
+      }
+      
+      // Don't forget to add the last question
+      if (currentQuestion) {
+        parsedQuestions.push(currentQuestion);
+      }
 
-      const headers = parseCSVLine(lines[0]);
+      console.log('Final parsed questions:', parsedQuestions);
+      setQuestions(parsedQuestions);
+      setValue('selectedQuestionOptions', parsedQuestions);
+      
+      const headers = lines[0].split(',').map(h => h.trim());
+      setSelectedColumns([...headers]);
+      setCsvData({
+        headers,
+        rows: lines.slice(1).map(line => line.split(',').map(cell => cell.trim()))
+      });
+
       const markdownTable = [
         `| ${headers.join(' | ')} |`,
         `| ${headers.map(() => '---').join(' | ')} |`,
-        ...lines.slice(1)
-          .filter(line => line.trim())
-          .map(line => `| ${parseCSVLine(line).join(' | ')} |`)
+        ...lines.slice(1).map(line => `| ${line.split(',').join(' | ')} |`)
       ].join('\n');
 
       setValue('file_upload', markdownTable);
@@ -218,6 +252,24 @@ export default function RunWorkflow() {
       console.error('Error reading file:', err);
       setError('Error reading file content');
     }
+  };
+
+  useEffect(() => {
+    if (csvData.headers.length > 0) {
+      setSelectedColumns([]);
+      setValue('selectedColumns', []);
+    }
+  }, [csvData.headers]);
+
+  const handleColumnChange = (columns) => {
+    setSelectedColumns(columns);
+    setValue('selectedColumns', columns);
+  };
+
+  const handleQuestionOptionsChange = (questionIndex, selectedOptions) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[questionIndex].selectedOptions = selectedOptions;
+    setQuestions(updatedQuestions);
   };
 
   const hasValidData = fullResponse && 
@@ -270,38 +322,27 @@ export default function RunWorkflow() {
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {renderConnectionStatus()}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {Object.entries(INPUT_FIELDS).map(([key, field]) => (
-          <div key={key}>
-            {field.type === 'select' ? (
-              <SelectField
-                name={field.variable}
-                register={register}
-                errors={errors}
-                options={field.options}
-                label={field.label}
-              />
-            ) : null}
-          </div>
-        ))}
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Application
-          </label>
-          <select
-            {...register('selectedApp')}
-            className="w-full p-2 border rounded-md"
-          >
-            {Object.values(DIFY_APPS).map(app => (
-              <option key={app.ID} value={app.ID}>
-                {app.NAME} - {app.DESCRIPTION}
-              </option>
-            ))}
-          </select>
-          {errors.selectedApp && (
-            <p className="text-red-500 text-sm mt-1">{errors.selectedApp.message}</p>
-          )}
-        </div>
+        <SelectField
+          name="insights_number"
+          register={register}
+          errors={errors}
+          options={['5', '10', '15', '20', '25']}
+          label="Number of Insights"
+        />
+        <SelectField
+          name="summary_insights_number"
+          register={register}
+          errors={errors}
+          options={['10', '20', '30', '40', '50']}
+          label="Number of Summary Insights"
+        />
+        <SelectField
+          name="language"
+          register={register}
+          errors={errors}
+          options={['Български', 'English']}
+          label="Language"
+        />
 
         <FileUploadSection
           register={register}
@@ -309,41 +350,41 @@ export default function RunWorkflow() {
           handleFileRead={handleFileRead}
         />
 
-        <div className="space-y-4">
-          <button
-            type="submit"
-            disabled={loading || !session}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
-          >
-            {!session ? 'Please sign in' : loading ? 'Processing...' : 'Run Workflow'}
-          </button>
+        {csvData.headers.length > 0 && (
+          <ColumnSelector
+            headers={csvData.headers}
+            selectedColumns={selectedColumns}
+            onColumnChange={handleColumnChange}
+            error={errors.selectedColumns?.message}
+          />
+        )}
 
-          {loading && (
-            <div className="flex items-center justify-center space-x-2 text-gray-600">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span>Processing your request...</span>
-            </div>
-          )}
+        {questions.length > 0 && (
+          <QuestionSelector
+            questions={questions}
+            onOptionsChange={handleQuestionOptionsChange}
+            error={errors.selectedQuestionOptions?.message}
+          />
+        )}
 
-          {error && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <button
+          type="submit"
+          disabled={loading || !session}
+          className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+        >
+          {!session ? 'Please sign in' : loading ? 'Processing...' : 'Run Workflow'}
+        </button>
       </form>
+
+      {csvData.headers.length > 0 && (
+        <div className="mt-6">
+          <h3 className="text-lg font-medium mb-2">CSV Preview</h3>
+          <CSVPreview 
+            csvData={csvData}
+            isLoading={loading}
+          />
+        </div>
+      )}
 
       {currentWorkflowId && (
         <WorkflowProgress

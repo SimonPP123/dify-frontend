@@ -58,8 +58,8 @@ export const CSVPreview: React.FC<CSVPreviewProps> = ({ csvData, isLoading }) =>
   }
 
   return (
-    <div className="mt-4">
-      <div className="mb-4">
+    <div className="mt-4 w-[calc(100%+300px)] -mx-[150px]">
+      <div className="mb-4 px-[150px]">
         <input
           type="text"
           placeholder="Search in table..."
@@ -68,20 +68,20 @@ export const CSVPreview: React.FC<CSVPreviewProps> = ({ csvData, isLoading }) =>
           className="w-full p-2 border rounded-md"
         />
       </div>
-      <div className="overflow-x-auto max-h-[400px]">
-        <table className="min-w-full border-collapse border border-gray-300">
-          <thead className="bg-gray-100 sticky top-0">
+      <div className="overflow-x-auto max-h-[700px] w-full">
+        <table className="w-full border-collapse border border-gray-300">
+          <thead className="bg-gray-100 sticky top-0 z-10">
             <tr>
               {csvData.headers.map((header, index) => (
                 <th 
                   key={index} 
-                  className="border border-gray-300 px-4 py-2 cursor-pointer hover:bg-gray-200"
+                  className="border border-gray-300 px-6 py-4 cursor-pointer hover:bg-gray-200"
                   onClick={() => handleSort(index)}
                 >
                   <div className="flex items-center justify-between">
-                    {header}
+                    <span className="font-semibold text-sm">{header}</span>
                     {sortConfig.column === index && (
-                      <span>{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
+                      <span className="ml-2">{sortConfig.direction === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </div>
                 </th>
@@ -90,9 +90,9 @@ export const CSVPreview: React.FC<CSVPreviewProps> = ({ csvData, isLoading }) =>
           </thead>
           <tbody>
             {sortedAndFilteredRows.map((row, rowIndex) => (
-              <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+              <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white hover:bg-gray-50' : 'bg-gray-50 hover:bg-gray-100'}>
                 {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className="border border-gray-300 px-4 py-2">{cell}</td>
+                  <td key={cellIndex} className="border border-gray-300 px-6 py-4 text-sm">{cell}</td>
                 ))}
               </tr>
             ))}
@@ -100,13 +100,13 @@ export const CSVPreview: React.FC<CSVPreviewProps> = ({ csvData, isLoading }) =>
         </table>
       </div>
       {csvData.rows.length > 15 && (
-        <div className="mt-4 flex justify-between items-center">
+        <div className="mt-6 flex justify-between items-center px-[150px]">
           <span className="text-sm text-gray-600">
             Showing {sortedAndFilteredRows.length} of {csvData.rows.length} rows
           </span>
           <button
             onClick={() => setShowAll(!showAll)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
           >
             {showAll ? 'Show Less' : 'Show All'}
           </button>
