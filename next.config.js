@@ -4,7 +4,7 @@ const nextConfig = {
   output: 'standalone',
   distDir: '.next',
   experimental: {
-    serverComponentsExternalPackages: [],
+    serverExternalPackages: [],
   },
   env: {
     PORT: '3002',
