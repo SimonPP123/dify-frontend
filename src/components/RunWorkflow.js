@@ -106,6 +106,9 @@ export default function RunWorkflow() {
     progress,
     currentStep,
     completedNodes,
+    isConnected,
+    connectionError,
+    checkConnection,
     fetchWorkflowResult
   } = useDifyAPI();
 

@@ -3,6 +3,8 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 export const useDifyAPI = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState(null);
   const [streamingResponse, setStreamingResponse] = useState('');
   const [fullResponse, setFullResponse] = useState(null);
   const [currentWorkflowId, setCurrentWorkflowId] = useState(null);
@@ -186,6 +188,25 @@ export const useDifyAPI = () => {
     }
   }, []);
 
+  const checkConnection = useCallback(async () => {
+    try {
+      const response = await fetch('/api/health');
+      if (response.ok) {
+        setIsConnected(true);
+        setConnectionError(null);
+      } else {
+        throw new Error('API health check failed');
+      }
+    } catch (error) {
+      setIsConnected(false);
+      setConnectionError('Failed to connect to API');
+    }
+  }, []);
+
+  useEffect(() => {
+    checkConnection();
+  }, [checkConnection]);
+
   return {
     sendMessage,
     loading,
@@ -198,6 +219,9 @@ export const useDifyAPI = () => {
     setProgress,
     currentStep,
     setCurrentStep,
-    completedNodes
+    completedNodes,
+    isConnected,
+    connectionError,
+    checkConnection
   };
 };
