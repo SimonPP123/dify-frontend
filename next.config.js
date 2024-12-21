@@ -1,11 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
-  distDir: '.next',
-  experimental: {
-    serverExternalPackages: [],
-  },
   env: {
     PORT: '3002',
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,

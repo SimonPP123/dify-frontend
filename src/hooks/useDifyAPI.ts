@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { WorkflowEvent, SendMessageParams, WorkflowResponse } from '../types/api';
 
@@ -38,6 +37,7 @@ export const useDifyAPI = () => {
     } catch (error) {
       console.error('Error fetching workflow result:', error);
       setError('Failed to fetch final workflow result');
+      throw error;
     }
   }, []);
 

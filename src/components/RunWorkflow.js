@@ -105,7 +105,8 @@ export default function RunWorkflow() {
     fullResponse,
     progress,
     currentStep,
-    completedNodes
+    completedNodes,
+    fetchWorkflowResult
   } = useDifyAPI();
 
   const [csvData, setCsvData] = useState({ headers: [], rows: [] });
