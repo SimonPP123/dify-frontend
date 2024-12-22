@@ -13,7 +13,12 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<HealthResponse | { error: string }>
 ) {
+  console.log('Health check endpoint hit');
+  console.log('Request headers:', req.headers);
+  console.log('Request method:', req.method);
+
   if (req.method !== 'GET') {
+    console.log('Method not allowed:', req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -21,9 +26,7 @@ export default async function handler(
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    // Use the base URL directly since we know it works
     const healthUrl = process.env.DIFY_API_URL;
-    
     console.log('Attempting health check at:', healthUrl);
 
     const difyHealth = await fetch(healthUrl, {
@@ -36,7 +39,6 @@ export default async function handler(
 
     clearTimeout(timeoutId);
 
-    // Log response for debugging
     console.log('Dify API Response:', {
       status: difyHealth.status,
       ok: difyHealth.ok,
