@@ -17,15 +17,20 @@ interface WorkflowRequest {
     'sys.app_id': string;
     'sys.user_id': string;
   };
-  response_mode: 'streaming';
+  response_mode: 'streaming' | 'blocking';
   user: string;
 }
 
 const validateRequest = (body: any): WorkflowRequest => {
-  console.log('🔍 Validating request body:', body);
-
   if (!body.inputs) {
     throw new Error('Missing inputs in request body');
+  }
+
+  const { insights_number, summary_insights_number, language, file_upload } = body.inputs;
+
+  // Validate required fields
+  if (!insights_number || !summary_insights_number || !language || !file_upload) {
+    throw new Error('Missing required input fields');
   }
 
   // Validate select options
@@ -33,17 +38,33 @@ const validateRequest = (body: any): WorkflowRequest => {
   const validSummaryInsights = ['10', '20', '30', '40', '50'];
   const validLanguages = ['Български', 'English'];
 
-  if (!validInsights.includes(body.inputs.insights_number)) {
+  if (!validInsights.includes(insights_number)) {
     throw new Error('Invalid insights number');
   }
-  if (!validSummaryInsights.includes(body.inputs.summary_insights_number)) {
+  if (!validSummaryInsights.includes(summary_insights_number)) {
     throw new Error('Invalid summary insights number');
   }
-  if (!validLanguages.includes(body.inputs.language)) {
+  if (!validLanguages.includes(language)) {
     throw new Error('Invalid language');
   }
 
-  return body as WorkflowRequest;
+  // Handle optional fields and system fields
+  const validatedBody: WorkflowRequest = {
+    inputs: {
+      insights_number,
+      summary_insights_number,
+      language,
+      file_upload,
+      selectedColumns: body.inputs.selectedColumns || [],
+      selectedQuestionOptions: body.inputs.selectedQuestionOptions || [],
+      'sys.app_id': body.inputs['sys.app_id'] || process.env.DIFY_APP_ID || '',
+      'sys.user_id': body.inputs['sys.user_id'] || 'anonymous'
+    },
+    response_mode: body.response_mode === 'streaming' ? 'streaming' : 'blocking',
+    user: body.user || 'anonymous'
+  };
+
+  return validatedBody;
 };
 
 export default async function handler(

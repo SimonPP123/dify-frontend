@@ -95,6 +95,8 @@ const FileUploadSection = ({ register, errors, handleFileRead }) => (
 export default function RunWorkflow() {
   const { data: session } = useSession();
   const [finalResponse, setFinalResponse] = useState(null);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResponse, setTestResponse] = useState(null);
   const { 
     sendMessage, 
     loading, 
@@ -122,26 +124,17 @@ export default function RunWorkflow() {
   }, [currentWorkflowId]);
 
   const onSubmit = async (data) => {
-    console.log('🔥 Submit button clicked');
-    console.log('Form Data:', {
-      data,
-      session,
-      isConnected,
-      validationState: {
-        isValid: Object.keys(errors).length === 0,
-        errors,
-        dirtyFields: formState.dirtyFields
-      }
-    });
+    console.log('🔥 Step 1: Submit button clicked');
+    console.log('Form data:', data);
 
     if (!session?.user?.id) {
-      console.error('No user session found');
+      console.log('❌ No user session');
       setError('User session is required');
       return;
     }
 
     if (!isConnected) {
-      console.log('API not connected, attempting connection...');
+      console.log('Checking connection...');
       try {
         await checkConnection();
       } catch (err) {
@@ -154,6 +147,7 @@ export default function RunWorkflow() {
     setFinalResponse(null);
     
     try {
+      console.log('🚀 Step 2: Validating inputs');
       const validatedInputs = validateInputs({
         ...data,
         selectedColumns,
@@ -164,29 +158,18 @@ export default function RunWorkflow() {
         }))
       }, session.user.id);
       
-      console.log('Sending workflow request:', {
+      console.log('✅ Validated inputs:', validatedInputs);
+      
+      console.log('🚀 Step 3: Sending message');
+      const result = await sendMessage({
         inputs: validatedInputs,
         response_mode: 'streaming',
         user: session.user.id
       });
       
-      const result = await sendMessage({
-        inputs: {
-          ...validatedInputs,
-          'sys.app_id': DIFY_APPS.APP_1.ID,
-        },
-        response_mode: 'streaming',
-        user: session.user.id
-      });
-      
-      console.log('Workflow response:', result);
-      
-      if (!result.success) {
-        throw new Error('Workflow submission failed');
-      }
+      console.log('✅ Message sent, result:', result);
     } catch (err) {
-      console.error('Submission error:', err);
-      setError(err.message || 'Failed to process workflow');
+      console.error('❌ Submission error:', err);
     }
   };
 
@@ -223,10 +206,22 @@ export default function RunWorkflow() {
     };
   }, [currentWorkflowId, fetchWorkflowResult, setError]);
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    getValues,
+    setValue,
+    formState: { errors, dirtyFields }
+  } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      selectedApp: DIFY_APPS.APP_1.ID
+      insights_number: '',
+      summary_insights_number: '',
+      language: '',
+      selectedApp: DIFY_APPS.APP_1.ID,
+      file_upload: '',
+      selectedColumns: [],
+      selectedQuestionOptions: []
     }
   });
 
@@ -242,7 +237,6 @@ export default function RunWorkflow() {
         const columns = lines[i].split(',').map(col => col.trim());
         console.log('Processing line:', i, 'Column 1:', columns[0], 'Column 2:', columns[1]);
         
-        // If line starts with "В" and has a number, it's a question
         if (columns[0].match(/^В\d+/)) {
           if (currentQuestion) {
             parsedQuestions.push(currentQuestion);
@@ -254,24 +248,30 @@ export default function RunWorkflow() {
           };
           console.log('New question found:', currentQuestion);
         } 
-        // If column 2 has content and we have a current question, it's an option
         else if (currentQuestion && columns[1] && columns[1] !== 'Total') {
           currentQuestion.options.push(columns[1]);
           console.log('Added option:', columns[1], 'to question:', currentQuestion.question);
         }
       }
       
-      // Don't forget to add the last question
       if (currentQuestion) {
         parsedQuestions.push(currentQuestion);
       }
 
       console.log('Final parsed questions:', parsedQuestions);
       setQuestions(parsedQuestions);
-      setValue('selectedQuestionOptions', parsedQuestions);
+      setValue('selectedQuestionOptions', parsedQuestions, { 
+        shouldValidate: true,
+        shouldDirty: true 
+      });
       
       const headers = lines[0].split(',').map(h => h.trim());
       setSelectedColumns([...headers]);
+      setValue('selectedColumns', headers, {
+        shouldValidate: true,
+        shouldDirty: true
+      });
+      
       setCsvData({
         headers,
         rows: lines.slice(1).map(line => line.split(',').map(cell => cell.trim()))
@@ -283,7 +283,10 @@ export default function RunWorkflow() {
         ...lines.slice(1).map(line => `| ${line.split(',').join(' | ')} |`)
       ].join('\n');
 
-      setValue('file_upload', markdownTable);
+      setValue('file_upload', markdownTable, {
+        shouldValidate: true,
+        shouldDirty: true
+      });
     } catch (err) {
       console.error('Error reading file:', err);
       setError('Error reading file content');
@@ -354,6 +357,107 @@ export default function RunWorkflow() {
     return null;
   };
 
+  useEffect(() => {
+    console.log('Session state:', session);
+  }, [session]);
+
+  const handleDifyAPICall = async (validatedInputs) => {
+    try {
+      const response = await fetch('https://dify.analyserinsights.com/v1/workflows/run', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer app-DG8cFxyufszAnkEdVJANHNin`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputs: validatedInputs,
+          response_mode: 'streaming',
+          user: session?.user?.id || 'anonymous'
+        })
+      });
+      
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      return response;
+    } catch (error) {
+      console.error('Dify API call failed:', error);
+      throw error;
+    }
+  };
+
+  const handleTestCall = async () => {
+    setTestLoading(true);
+    try {
+      const formValues = getValues();
+      const response = await fetch('/api/workflows/run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputs: {
+            insights_number: formValues.insights_number,
+            summary_insights_number: formValues.summary_insights_number,
+            language: formValues.language,
+            file_upload: formValues.file_upload,
+            selectedColumns: selectedColumns,
+            selectedQuestionOptions: questions.map(q => ({
+              question: q.question,
+              options: q.options,
+              selectedOptions: q.selectedOptions
+            })),
+            'sys.app_id': DIFY_APPS.APP_1.ID,
+            'sys.user_id': 'test-user-1'
+          },
+          response_mode: 'streaming',
+          user: 'test-user-1'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result = {};
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith('data: ')) continue;
+          
+          try {
+            const jsonStr = line.slice(5); // Remove 'data: ' prefix
+            const eventData = JSON.parse(jsonStr);
+            
+            // Accumulate the response data
+            if (eventData.event === 'workflow_finished' && eventData.data?.outputs) {
+              result = { ...result, ...eventData.data.outputs };
+            } else if (eventData.data?.outputs?.text) {
+              result.text = (result.text || '') + eventData.data.outputs.text;
+            }
+          } catch (e) {
+            console.warn('Failed to parse SSE message:', line);
+          }
+        }
+      }
+
+      setTestResponse(result);
+    } catch (error) {
+      console.error('Test API call failed:', error);
+      setTestResponse({ error: error.message });
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {renderConnectionStatus()}
@@ -403,13 +507,24 @@ export default function RunWorkflow() {
           />
         )}
 
-        <button
-          type="submit"
-          disabled={loading || !session}
-          className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
-        >
-          {!session ? 'Please sign in' : loading ? 'Processing...' : 'Run Workflow'}
-        </button>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={handleTestCall}
+            disabled={testLoading}
+            className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:bg-gray-300"
+          >
+            {testLoading ? 'Testing...' : 'Test API'}
+          </button>
+
+          <button
+            type="submit"
+            disabled={loading || !session}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300"
+          >
+            {!session ? 'Please sign in' : loading ? 'Processing...' : 'Run Workflow'}
+          </button>
+        </div>
       </form>
 
       {csvData.headers.length > 0 && (
@@ -419,6 +534,15 @@ export default function RunWorkflow() {
             csvData={csvData}
             isLoading={loading}
           />
+        </div>
+      )}
+
+      {testResponse && (
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+          <h3 className="text-lg font-medium mb-2">Test Response</h3>
+          <pre className="whitespace-pre-wrap">
+            {JSON.stringify(testResponse, null, 2)}
+          </pre>
         </div>
       )}
 

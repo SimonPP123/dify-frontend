@@ -43,21 +43,25 @@ export const useDifyAPI = () => {
 
   const sendMessageWithRetry = async (payload, retryCount = 0) => {
     try {
-      console.log('🚀 Sending workflow request:', {
-        url: '/api/workflows/run',
+      console.log('Attempting to send workflow request:', {
+        url: `${process.env.DIFY_API_URL}/v1/workflows/run`,
         payload,
-        retryCount
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
+        }
       });
 
-      const response = await fetch('/api/workflows/run', {
+      const response = await fetch(`${process.env.DIFY_API_URL}/v1/workflows/run`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
         },
         body: JSON.stringify(payload)
       });
       
-      console.log('📡 API Response:', {
+      console.log('Workflow API Response:', {
         status: response.status,
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries())
@@ -65,30 +69,87 @@ export const useDifyAPI = () => {
       
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('❌ API Error:', {
-          status: response.status,
-          error: errorData
-        });
+        console.error('API Error Response:', errorData);
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorData}`);
       }
       
       return response;
     } catch (error) {
-      console.error('🔥 Workflow API Error:', {
-        error: error.message,
-        retryCount,
-        maxRetries: MAX_RETRIES
-      });
-      
+      console.error('Workflow API Error:', error);
       if (retryCount < MAX_RETRIES) {
-        const delay = RETRY_DELAY * Math.pow(2, retryCount);
-        console.log(`Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, retryCount)));
         return sendMessageWithRetry(payload, retryCount + 1);
       }
       throw error;
     }
   };
+
+  const handleWorkflowEvent = useCallback((eventData) => {
+    try {
+      const event = JSON.parse(eventData);
+      
+      switch(event.event) {
+        case 'workflow_started':
+          if (event.workflow_run_id) {
+            console.log('Workflow started:', event.workflow_run_id);
+            setCurrentWorkflowId(event.workflow_run_id);
+            setProgress(5);
+            setCurrentStep('Starting workflow...');
+            setStreamingResponse('Workflow started...\n');
+          }
+          break;
+        
+        case 'node_started':
+          if (event.data?.title) {
+            const nodeTitle = event.data.title;
+            const node = WORKFLOW_NODES[nodeTitle] || { 
+              weight: 10, 
+              label: `Processing ${nodeTitle}...` 
+            };
+            
+            console.log('Node started:', nodeTitle);
+            setCurrentStep(node.label);
+            setStreamingResponse(prev => prev + `${node.label}\n`);
+            
+            if (nodeTitle.startsWith('Въпрос')) {
+              const questionNum = parseInt(nodeTitle.match(/\d+/)?.[0] || '0');
+              setProgress(prev => Math.min(40 + (questionNum * 15), 90));
+            } else {
+              setProgress(prev => Math.min(prev + node.weight, 95));
+            }
+          }
+          break;
+        
+        case 'node_finished':
+          if (event.data?.title) {
+            const nodeTitle = event.data.title;
+            setCompletedNodes(prev => new Set([...prev, nodeTitle]));
+            if (event.data?.outputs?.text) {
+              setStreamingResponse(prev => prev + event.data.outputs.text + '\n');
+            }
+          }
+          break;
+        
+        case 'workflow_finished':
+          setProgress(100);
+          setCurrentStep('Completed');
+          if (event.data?.outputs) {
+            setFullResponse(event.data.outputs);
+          }
+          setLoading(false);
+          break;
+        
+        case 'error':
+          const errorMsg = event.data?.error || 'Unknown error';
+          setError(errorMsg);
+          setLoading(false);
+          throw new Error(errorMsg);
+      }
+    } catch (error) {
+      console.error('Error processing workflow event:', error);
+      setError('Error processing workflow response');
+    }
+  }, [setCurrentWorkflowId, setProgress, setCurrentStep, setStreamingResponse, setCompletedNodes, setFullResponse, setLoading, setError]);
 
   const sendMessage = useCallback(async ({ inputs, response_mode = 'streaming', user }) => {
     if (abortController.current) {
@@ -118,100 +179,30 @@ export const useDifyAPI = () => {
       let buffer = '';
 
       while (true) {
-        try {
-          const { done, value } = await reader.read();
-          if (done) {
-            console.log('Stream completed');
-            break;
-          }
+        const { done, value } = await reader.read();
+        if (done) break;
 
-          buffer += decoder.decode(value, { stream: true });
-          console.log('Received chunk:', buffer);
-          const messages = buffer.split('\n\n');
-          buffer = messages.pop() || '';
+        buffer += decoder.decode(value, { stream: true });
+        const messages = buffer.split('\n\n');
+        buffer = messages.pop() || '';
 
-          for (const message of messages) {
-            const dataMatch = message.match(/^data: (.+)$/m);
-            if (!dataMatch) continue;
-            
-            try {
-              const event = JSON.parse(dataMatch[1]);
-              
-              switch(event.event) {
-                case 'workflow_started':
-                  if (event.workflow_run_id) {
-                    console.log('Workflow started:', event.workflow_run_id);
-                    setCurrentWorkflowId(event.workflow_run_id);
-                    setProgress(5);
-                    setCurrentStep('Starting workflow...');
-                    setStreamingResponse('Workflow started...\n');
-                  }
-                  break;
-                
-                case 'node_started':
-                  if (event.data?.title) {
-                    const nodeTitle = event.data.title;
-                    const node = WORKFLOW_NODES[nodeTitle] || { 
-                      weight: 10, 
-                      label: `Processing ${nodeTitle}...` 
-                    };
-                    
-                    console.log('Node started:', nodeTitle);
-                    setCurrentStep(node.label);
-                    setStreamingResponse(prev => prev + `${node.label}\n`);
-                    
-                    if (nodeTitle.startsWith('Въпрос')) {
-                      const questionNum = parseInt(nodeTitle.match(/\d+/)?.[0] || '0');
-                      setProgress(prev => Math.min(40 + (questionNum * 15), 90));
-                    } else {
-                      setProgress(prev => Math.min(prev + node.weight, 95));
-                    }
-                  }
-                  break;
-                
-                case 'node_finished':
-                  if (event.data?.title) {
-                    const nodeTitle = event.data.title;
-                    setCompletedNodes(prev => new Set([...prev, nodeTitle]));
-                    if (event.data?.outputs?.text) {
-                      setStreamingResponse(prev => prev + event.data.outputs.text + '\n');
-                    }
-                  }
-                  break;
-                
-                case 'workflow_finished':
-                  setProgress(100);
-                  setCurrentStep('Completed');
-                  if (event.data?.outputs) {
-                    setFullResponse(event.data.outputs);
-                  }
-                  setLoading(false);
-                  break;
-                
-                case 'error':
-                  const errorMsg = event.data?.error || 'Unknown error';
-                  setError(errorMsg);
-                  setLoading(false);
-                  throw new Error(errorMsg);
-              }
-            } catch (e) {
-              console.error('Error parsing SSE data:', e);
-              throw e;
-            }
-          }
-        } catch (error) {
-          console.error('Error reading stream:', error);
-          throw error;
+        for (const message of messages) {
+          if (!message.trim() || !message.startsWith('data: ')) continue;
+          
+          const eventData = message.slice(5).trim();
+          if (!eventData) continue;
+
+          handleWorkflowEvent(eventData);
         }
       }
 
       return { success: true };
     } catch (error) {
       setError(error.message || 'Unknown error');
-      setLoading(false); 
+      setLoading(false);
       throw error;
     }
-  }, []);
+  }, [handleWorkflowEvent, sendMessageWithRetry, setError, setLoading]);
 
   const checkConnection = useCallback(async () => {
     try {

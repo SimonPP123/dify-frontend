@@ -21,8 +21,15 @@ export interface WorkflowEvent {
 }
 
 export interface SendMessageParams {
-  inputs: WorkflowInputs;
-  response_mode?: 'streaming' | 'blocking';
+  inputs: {
+    insights_number: string;
+    summary_insights_number: string;
+    language: string;
+    file_upload: string;
+    selectedColumns?: string[];
+    selectedQuestionOptions?: any[];
+  };
+  response_mode: 'blocking';
   user: string;
 }
 
