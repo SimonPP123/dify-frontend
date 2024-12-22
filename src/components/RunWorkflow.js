@@ -266,6 +266,16 @@ export default function RunWorkflow() {
       ].join('\n');
 
       setValue('file_upload', markdownTable);
+
+      console.log('Form values after file upload:', {
+        file_upload: markdownTable,
+        selectedColumns,
+        questions: parsedQuestions,
+        insights_number: getValues('insights_number'),
+        summary_insights_number: getValues('summary_insights_number'),
+        language: getValues('language')
+      });
+
     } catch (err) {
       console.error('Error reading file:', err);
       setError('Error reading file content');
