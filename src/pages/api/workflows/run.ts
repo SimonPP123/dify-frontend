@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getApiUrl } from '../../../utils/api';
 
 interface APIError extends Error {
   name: string;
@@ -90,7 +91,7 @@ export default async function handler(
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-    const response = await fetch(`${process.env.DIFY_API_URL}/workflows/run`, {
+    const response = await fetch(getApiUrl('/workflows/run'), {
       method: 'POST',
       signal: controller.signal,
       headers: {

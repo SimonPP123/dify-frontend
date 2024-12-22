@@ -1,8 +1,13 @@
 const API_URL = process.env.DIFY_API_URL;
 const API_KEY = process.env.DIFY_API_KEY;
 
+export const getApiUrl = (endpoint) => {
+  const baseUrl = process.env.DIFY_API_URL?.replace(/\/v1$/, '');
+  return `${baseUrl}${endpoint}`;
+};
+
 export async function fetchDifyAPI(endpoint, options = {}) {
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const response = await fetch(getApiUrl(endpoint), {
     ...options,
     headers: {
       'Authorization': `Bearer ${API_KEY}`,

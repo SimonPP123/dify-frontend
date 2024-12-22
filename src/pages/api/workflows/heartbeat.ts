@@ -12,7 +12,7 @@ export default async function handler(
 
   try {
     const response = await fetch(
-      `${process.env.DIFY_API_URL}/workflows/${workflowRunId}/status`,
+      `${process.env.DIFY_API_URL}/v1/workflows/${workflowRunId}/status`,
       {
         headers: {
           Authorization: `Bearer ${process.env.DIFY_API_KEY}`,

@@ -127,6 +127,15 @@ export default function RunWorkflow() {
       return;
     }
 
+    if (!isConnected) {
+      try {
+        await checkConnection();
+      } catch (err) {
+        setError('Cannot connect to API. Please try again later.');
+        return;
+      }
+    }
+
     setFinalResponse(null);
     
     try {
@@ -153,7 +162,9 @@ export default function RunWorkflow() {
         user: session.user.id
       });
       
-      console.log('Initial API response:', result);
+      if (!result.success) {
+        throw new Error('Workflow submission failed');
+      }
     } catch (err) {
       console.error('Submission error:', err);
       setError(err.message || 'Failed to process workflow');

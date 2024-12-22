@@ -43,10 +43,11 @@ export const useDifyAPI = () => {
 
   const sendMessageWithRetry = async (payload, retryCount = 0) => {
     try {
-      const response = await fetch('/api/workflows/run', {
+      const response = await fetch(`${process.env.DIFY_API_URL}/api/v1/workflows/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
         },
         body: JSON.stringify(payload)
       });
