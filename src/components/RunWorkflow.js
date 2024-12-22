@@ -12,6 +12,7 @@ import { DownloadButtons } from './DownloadButtons';
 import { CSVPreview } from './CSVPreview';
 import { QuestionSelector } from './QuestionSelector';
 import { ColumnSelector } from './ColumnSelector';
+import { StatisticalOptionsSelector } from './StatisticalOptionsSelector';
 import { transformDifyResponse, createEmptyResponse } from '../utils/responseTransformer';
 
 const schema = yup.object().shape({
@@ -24,16 +25,10 @@ const schema = yup.object().shape({
   language: yup.string()
     .oneOf(['Български', 'English'], 'Please select a valid language')
     .required('Language is required'),
-  selectedApp: yup.string().required('Please select an application'),
-  file_upload: yup.string().required('File content is required').max(1000000),
-  selectedColumns: yup.array().min(1, 'Please select at least one column').required('Column selection is required'),
-  selectedQuestionOptions: yup.array().of(
-    yup.object().shape({
-      question: yup.string().required(),
-      options: yup.array().of(yup.string()),
-      selectedOptions: yup.array().of(yup.string()).min(1, 'Please select at least one option')
-    })
-  )
+  file_upload: yup.string().required('File content is required'),
+  columns_selected: yup.string().required('Column selection is required'),
+  question_rows_selected: yup.string().required('Question selections are required'),
+  statistics_selected: yup.string().required('Statistical options are required')
 });
 
 const SelectField = ({ name, register, errors, options, label }) => (
@@ -97,7 +92,12 @@ export default function RunWorkflow() {
   const { data: session } = useSession();
   const [finalResponse, setFinalResponse] = useState(null);
   const [testLoading, setTestLoading] = useState(false);
-  const [testResponse, setTestResponse] = useState(null);
+  const [testResponse, setTestResponse] = useState({
+    output: [],
+    summary: '',
+    whole_output: [],
+    whole_summary: ''
+  });
   const { 
     sendMessage, 
     loading, 
@@ -118,6 +118,7 @@ export default function RunWorkflow() {
   const [csvData, setCsvData] = useState({ headers: [], rows: [] });
   const [selectedColumns, setSelectedColumns] = useState([]);
   const [questions, setQuestions] = useState([]);
+  const [selectedStatOptions, setSelectedStatOptions] = useState([]);
 
   const getWorkflowState = useCallback(() => {
     if (!currentWorkflowId) return null;
@@ -151,12 +152,9 @@ export default function RunWorkflow() {
       console.log('🚀 Step 2: Validating inputs');
       const validatedInputs = validateInputs({
         ...data,
-        selectedColumns,
-        selectedQuestionOptions: questions.map(q => ({
-          question: q.question,
-          options: q.options,
-          selectedOptions: q.selectedOptions
-        }))
+        columns_selected: selectedColumns.join(','),
+        question_rows_selected: questions.map(q => q.selectedOptions.join(',')),
+        statistics_selected: selectedStatOptions.join(',')
       }, session.user.id);
       
       console.log('✅ Validated inputs:', validatedInputs);
@@ -312,6 +310,11 @@ export default function RunWorkflow() {
     setQuestions(updatedQuestions);
   };
 
+  const handleStatOptionsChange = (options) => {
+    setSelectedStatOptions(options);
+    setValue('statisticalOptions', options);
+  };
+
   const hasValidData = fullResponse && 
     (fullResponse.output || fullResponse.questions) && 
     Object.keys(fullResponse).length > 0;
@@ -347,7 +350,7 @@ export default function RunWorkflow() {
             </div>
             <div className="ml-3">
               <p className="text-sm text-green-700">
-                Connected to API
+                Connected to Dify
               </p>
             </div>
           </div>
@@ -389,44 +392,95 @@ export default function RunWorkflow() {
     setTestLoading(true);
     try {
       const formValues = getValues();
+      
+      // Validate required fields
+      if (!formValues.insights_number || !formValues.summary_insights_number || 
+          !formValues.language || !formValues.file_upload) {
+        throw new Error('Please fill in all required fields');
+      }
+
+      const requestBody = {
+        inputs: {
+          insights_number: formValues.insights_number,
+          summary_insights_number: formValues.summary_insights_number,
+          language: formValues.language,
+          file_upload: formValues.file_upload,
+          columns_selected: selectedColumns.join(','),
+          question_rows_selected: questions
+            .filter(q => q.selectedOptions.length > 0)
+            .map(q => q.selectedOptions.join(','))
+            .join('|'),
+          statistics_selected: selectedStatOptions.join(','),
+          'sys.app_id': DIFY_APPS.APP_1.ID,
+          'sys.user_id': session?.user?.id || 'anonymous'
+        },
+        response_mode: 'streaming',
+        user: session?.user?.id || 'anonymous'
+      };
+
+      console.log('Sending request:', requestBody);
+
       const response = await fetch('/api/workflows/run', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          inputs: {
-            insights_number: formValues.insights_number,
-            summary_insights_number: formValues.summary_insights_number,
-            language: formValues.language,
-            file_upload: formValues.file_upload,
-            selectedColumns: selectedColumns,
-            selectedQuestionOptions: questions.map(q => ({
-              question: q.question,
-              options: q.options,
-              selectedOptions: q.selectedOptions
-            })),
-            'sys.app_id': DIFY_APPS.APP_1.ID,
-            'sys.user_id': 'test-user-1'
-          },
-          response_mode: 'blocking',
-          user: 'test-user-1'
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorData = await response.json();
+        console.error('API Error Response:', errorData);
+        throw new Error(errorData.error || `Dify API error: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('📦 Test API Response:', data);
-      
-      const transformedData = transformDifyResponse(data);
-      console.log('📦 Transformed Test Response:', transformedData);
-      setTestResponse(transformedData);
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        buffer += decoder.decode(value);
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6); // Remove 'data: ' prefix
+              const data = JSON.parse(jsonStr);
+              console.log('Parsed chunk:', data);
+              
+              // Extract outputs based on event type
+              if (data.event === 'workflow_finished' && data.data?.outputs) {
+                const outputs = data.data.outputs;
+                setTestResponse({
+                  output: outputs.output || [],
+                  summary: outputs.summary || '',
+                  whole_output: outputs.whole_output || [],
+                  whole_summary: outputs.whole_summary || ''
+                });
+              } else if (data.event === 'node_finished' && data.data?.outputs) {
+                const outputs = data.data.outputs;
+                setTestResponse(prev => ({
+                  output: outputs.output || prev.output || [],
+                  summary: outputs.summary || prev.summary || '',
+                  whole_output: outputs.whole_output || prev.whole_output || [],
+                  whole_summary: outputs.whole_summary || prev.whole_summary || ''
+                }));
+              }
+            } catch (e) {
+              console.warn('Failed to parse SSE message:', e);
+            }
+          }
+        }
+      }
     } catch (error) {
       console.error('Test API call failed:', error);
-      setTestResponse({ error: error.message });
+      setError(error.message);
     } finally {
       setTestLoading(false);
     }
@@ -465,12 +519,14 @@ export default function RunWorkflow() {
         />
 
         {csvData.headers.length > 0 && (
-          <ColumnSelector
-            headers={csvData.headers}
-            selectedColumns={selectedColumns}
-            onColumnChange={handleColumnChange}
-            error={errors.selectedColumns?.message}
-          />
+          <>
+            <ColumnSelector
+              headers={csvData.headers}
+              selectedColumns={selectedColumns}
+              onColumnChange={handleColumnChange}
+              error={errors.selectedColumns?.message}
+            />
+          </>
         )}
 
         {questions.length > 0 && (
@@ -481,22 +537,20 @@ export default function RunWorkflow() {
           />
         )}
 
+        <StatisticalOptionsSelector
+          selectedOptions={selectedStatOptions}
+          onOptionsChange={handleStatOptionsChange}
+          error={errors.statisticalOptions?.message}
+        />
+
         <div className="flex gap-4">
           <button
             type="button"
             onClick={handleTestCall}
             disabled={testLoading}
-            className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:bg-gray-300"
+            className="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 disabled:bg-gray-300"
           >
-            {testLoading ? 'Testing...' : 'Test API'}
-          </button>
-
-          <button
-            type="submit"
-            disabled={loading || !session}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300"
-          >
-            {!session ? 'Please sign in' : loading ? 'Processing...' : 'Run Workflow'}
+            {testLoading ? 'Processing...' : 'Run Analysis'}
           </button>
         </div>
       </form>
@@ -511,10 +565,10 @@ export default function RunWorkflow() {
         </div>
       )}
 
-      {testResponse && (
+      {testResponse && (testResponse.output?.length > 0 || testResponse.summary) && (
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="text-lg font-medium">Test Response</h3>
+            <h3 className="text-lg font-medium">Analysis Results</h3>
             <DownloadButtons 
               output={testResponse.output || []}
               summary={testResponse.summary || ''}
@@ -522,9 +576,19 @@ export default function RunWorkflow() {
               whole_summary={testResponse.whole_summary || ''}
             />
           </div>
-          <pre className="whitespace-pre-wrap">
-            {JSON.stringify(testResponse, null, 2)}
-          </pre>
+          <div className="space-y-4">
+            {testResponse.output?.map((insight, index) => (
+              <div key={index} className="p-3 bg-white rounded shadow">
+                {insight}
+              </div>
+            ))}
+            {testResponse.summary && (
+              <div className="p-3 bg-white rounded shadow mt-4">
+                <h4 className="font-medium mb-2">Summary</h4>
+                {testResponse.summary}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

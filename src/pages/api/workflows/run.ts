@@ -9,12 +9,9 @@ interface WorkflowRequest {
     summary_insights_number: string;
     language: string;
     file_upload: string;
-    selectedColumns: string[];
-    selectedQuestionOptions: Array<{
-      question: string;
-      options: string[];
-      selectedOptions: string[];
-    }>;
+    columns_selected: string;
+    question_rows_selected: string;
+    statistics_selected: string;
     'sys.app_id': string;
     'sys.user_id': string;
   };
@@ -27,7 +24,15 @@ const validateRequest = (body: any): WorkflowRequest => {
     throw new Error('Missing inputs in request body');
   }
 
-  const { insights_number, summary_insights_number, language, file_upload } = body.inputs;
+  const { 
+    insights_number, 
+    summary_insights_number, 
+    language, 
+    file_upload,
+    columns_selected,
+    question_rows_selected,
+    statistics_selected 
+  } = body.inputs;
 
   // Validate required fields
   if (!insights_number || !summary_insights_number || !language || !file_upload) {
@@ -49,23 +54,32 @@ const validateRequest = (body: any): WorkflowRequest => {
     throw new Error('Invalid language');
   }
 
-  // Handle optional fields and system fields
-  const validatedBody: WorkflowRequest = {
+  // Additional validations for new fields
+  if (typeof columns_selected !== 'string') {
+    throw new Error('columns_selected must be a comma-separated string');
+  }
+  if (typeof question_rows_selected !== 'string') {
+    throw new Error('question_rows_selected must be a string');
+  }
+  if (typeof statistics_selected !== 'string') {
+    throw new Error('statistics_selected must be a comma-separated string');
+  }
+
+  return {
     inputs: {
       insights_number,
       summary_insights_number,
       language,
       file_upload,
-      selectedColumns: body.inputs.selectedColumns || [],
-      selectedQuestionOptions: body.inputs.selectedQuestionOptions || [],
+      columns_selected,
+      question_rows_selected,
+      statistics_selected,
       'sys.app_id': body.inputs['sys.app_id'] || process.env.DIFY_APP_ID || '',
       'sys.user_id': body.inputs['sys.user_id'] || 'anonymous'
     },
     response_mode: body.response_mode === 'streaming' ? 'streaming' : 'blocking',
     user: body.user || 'anonymous'
   };
-
-  return validatedBody;
 };
 
 const formatResponse = (data: any) => {
@@ -91,33 +105,48 @@ export default async function handler(
   const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
 
   try {
-    const validatedBody = validateRequest(req.body);
-    console.log('✅ Request validation passed');
+    let validatedBody;
+    try {
+      validatedBody = validateRequest(req.body);
+      console.log('✅ Request validation passed');
+    } catch (validationError) {
+      return res.status(400).json({ 
+        error: validationError.message || 'Invalid request data'
+      });
+    }
     
     // For blocking mode, handle differently
     if (validatedBody.response_mode === 'blocking') {
-      const response = await fetch(getApiUrl('/v1/workflows/run'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
-        },
-        body: JSON.stringify(validatedBody)
-      });
+      try {
+        const response = await fetch(getApiUrl('/v1/workflows/run'), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
+          },
+          body: JSON.stringify(validatedBody)
+        });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
+        const data = await response.json();
 
-      const data = await response.json();
-      return res.json({
-        outputs: data.outputs || {
-          output: data.data?.outputs?.output || [],
-          summary: data.data?.outputs?.summary || '',
-          whole_output: data.data?.outputs?.whole_output || [],
-          whole_summary: data.data?.outputs?.whole_summary || ''
+        if (!response.ok) {
+          throw new Error(data.error || `Dify API error: ${response.status}`);
         }
-      });
+
+        return res.json({
+          outputs: data.outputs || {
+            output: data.data?.outputs?.output || [],
+            summary: data.data?.outputs?.summary || '',
+            whole_output: data.data?.outputs?.whole_output || [],
+            whole_summary: data.data?.outputs?.whole_summary || ''
+          }
+        });
+      } catch (apiError) {
+        console.error('Dify API error:', apiError);
+        return res.status(500).json({ 
+          error: apiError.message || 'Error communicating with Dify API'
+        });
+      }
     }
 
     // Set SSE headers

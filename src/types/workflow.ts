@@ -3,11 +3,11 @@ export interface WorkflowInputs {
   summary_insights_number: '10' | '20' | '30' | '40' | '50';
   language: 'Български' | 'English';
   file_upload: string;
+  columns_selected: string;
+  question_rows_selected: string;
+  statistics_selected: string;
   'sys.app_id': string;
   'sys.user_id': string;
-  'sys.files'?: string[];
-  selectedApp?: string;
-  selectedColumns: string[];
   [key: string]: any;
 }
 

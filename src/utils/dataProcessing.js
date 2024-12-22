@@ -16,12 +16,72 @@ export const validateInputs = (inputs, userId) => {
   
   const processedInputs = {};
   
-  // Process standard inputs
+  // Required fields validation
+  const requiredFields = [
+    'insights_number',
+    'summary_insights_number',
+    'language',
+    'file_upload',
+    'columns_selected',
+    'question_rows_selected',
+    'statistics_selected'
+  ];
+
+  for (const field of requiredFields) {
+    if (!inputs[field]) {
+      throw new Error(`Missing required field: ${field}`);
+    }
+  }
+
+  // Validate and process each field
   for (const [key, value] of Object.entries(inputs)) {
-    if (key === 'selectedApp') {
-      processedInputs['sys.app_id'] = value;
-    } else if (value !== undefined && value !== null) {
-      processedInputs[key] = processLargeInput(value);
+    if (value === undefined || value === null) continue;
+
+    switch (key) {
+      case 'selectedApp':
+        processedInputs['sys.app_id'] = value;
+        break;
+
+      case 'columns_selected':
+        if (Array.isArray(value)) {
+          processedInputs[key] = value.join(',');
+        } else if (typeof value === 'string') {
+          processedInputs[key] = value;
+        } else {
+          throw new Error('columns_selected must be an array or string');
+        }
+        break;
+
+      case 'question_rows_selected':
+        if (Array.isArray(value)) {
+          // If it's an array of arrays (from the form), join with | for questions and , for options
+          if (Array.isArray(value[0])) {
+            processedInputs[key] = value
+              .map(question => question.join(','))
+              .join('|');
+          } else {
+            // If it's a simple array, just join with commas
+            processedInputs[key] = value.join(',');
+          }
+        } else if (typeof value === 'string') {
+          processedInputs[key] = value;
+        } else {
+          throw new Error('question_rows_selected must be an array or string');
+        }
+        break;
+
+      case 'statistics_selected':
+        if (Array.isArray(value)) {
+          processedInputs[key] = value.join(',');
+        } else if (typeof value === 'string') {
+          processedInputs[key] = value;
+        } else {
+          throw new Error('statistics_selected must be an array or string');
+        }
+        break;
+
+      default:
+        processedInputs[key] = processLargeInput(value);
     }
   }
   
