@@ -43,12 +43,10 @@ export const useDifyAPI = () => {
 
   const sendMessageWithRetry = async (payload, retryCount = 0) => {
     try {
-      console.log('Attempting to send workflow request:', {
+      console.log('🚀 Sending workflow request:', {
         url: '/api/workflows/run',
         payload,
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        retryCount
       });
 
       const response = await fetch('/api/workflows/run', {
@@ -59,7 +57,7 @@ export const useDifyAPI = () => {
         body: JSON.stringify(payload)
       });
       
-      console.log('Workflow API Response:', {
+      console.log('📡 API Response:', {
         status: response.status,
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries())
@@ -67,15 +65,25 @@ export const useDifyAPI = () => {
       
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('API Error Response:', errorData);
+        console.error('❌ API Error:', {
+          status: response.status,
+          error: errorData
+        });
         throw new Error(`HTTP error! status: ${response.status}, message: ${errorData}`);
       }
       
       return response;
     } catch (error) {
-      console.error('Workflow API Error:', error);
+      console.error('🔥 Workflow API Error:', {
+        error: error.message,
+        retryCount,
+        maxRetries: MAX_RETRIES
+      });
+      
       if (retryCount < MAX_RETRIES) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, retryCount)));
+        const delay = RETRY_DELAY * Math.pow(2, retryCount);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
         return sendMessageWithRetry(payload, retryCount + 1);
       }
       throw error;

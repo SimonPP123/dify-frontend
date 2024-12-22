@@ -123,15 +123,29 @@ export default function RunWorkflow() {
 
   const onSubmit = async (data) => {
     console.log('🔥 Submit button clicked');
+    console.log('Form Data:', {
+      data,
+      session,
+      isConnected,
+      validationState: {
+        isValid: Object.keys(errors).length === 0,
+        errors,
+        dirtyFields: formState.dirtyFields
+      }
+    });
+
     if (!session?.user?.id) {
+      console.error('No user session found');
       setError('User session is required');
       return;
     }
 
     if (!isConnected) {
+      console.log('API not connected, attempting connection...');
       try {
         await checkConnection();
       } catch (err) {
+        console.error('Connection check failed:', err);
         setError('Cannot connect to API. Please try again later.');
         return;
       }
@@ -140,8 +154,6 @@ export default function RunWorkflow() {
     setFinalResponse(null);
     
     try {
-      console.log('Submitting form with data:', data);
-      
       const validatedInputs = validateInputs({
         ...data,
         selectedColumns,
@@ -152,7 +164,11 @@ export default function RunWorkflow() {
         }))
       }, session.user.id);
       
-      console.log('Validated inputs:', validatedInputs);
+      console.log('Sending workflow request:', {
+        inputs: validatedInputs,
+        response_mode: 'streaming',
+        user: session.user.id
+      });
       
       const result = await sendMessage({
         inputs: {
@@ -162,6 +178,8 @@ export default function RunWorkflow() {
         response_mode: 'streaming',
         user: session.user.id
       });
+      
+      console.log('Workflow response:', result);
       
       if (!result.success) {
         throw new Error('Workflow submission failed');
@@ -205,7 +223,7 @@ export default function RunWorkflow() {
     };
   }, [currentWorkflowId, fetchWorkflowResult, setError]);
 
-  const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       selectedApp: DIFY_APPS.APP_1.ID
@@ -388,20 +406,6 @@ export default function RunWorkflow() {
         <button
           type="submit"
           disabled={loading || !session}
-          onClick={() => {
-            console.log('Button clicked, form state:', {
-              isValid: Object.keys(errors).length === 0,
-              errors,
-              values: {
-                insights_number: getValues('insights_number'),
-                summary_insights_number: getValues('summary_insights_number'),
-                language: getValues('language'),
-                file_upload: getValues('file_upload'),
-                selectedColumns: getValues('selectedColumns'),
-                selectedQuestionOptions: getValues('selectedQuestionOptions')
-              }
-            });
-          }}
           className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
         >
           {!session ? 'Please sign in' : loading ? 'Processing...' : 'Run Workflow'}

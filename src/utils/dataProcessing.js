@@ -11,20 +11,24 @@ export const processLargeInput = (input) => {
   return input;
 };
 
-export const validateInputs = (inputs) => {
+export const validateInputs = (inputs, userId) => {
+  console.log('Validating inputs:', inputs);
+  
   const processedInputs = {};
   
   // Process standard inputs
   for (const [key, value] of Object.entries(inputs)) {
     if (key === 'selectedApp') {
       processedInputs['sys.app_id'] = value;
-    } else {
+    } else if (value !== undefined && value !== null) {
       processedInputs[key] = processLargeInput(value);
     }
   }
   
   // Add required system fields
   processedInputs['sys.files'] = [];
+  processedInputs['sys.user_id'] = userId;
   
+  console.log('Processed inputs:', processedInputs);
   return processedInputs;
 }; 
