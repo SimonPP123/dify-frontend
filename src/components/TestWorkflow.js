@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import { DownloadButtons } from './DownloadButtons';
+import { transformDifyResponse, createEmptyResponse } from '../utils/responseTransformer';
 
 export const TestWorkflow = () => {
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState(null);
-  const [formattedResponse, setFormattedResponse] = useState({
-    output: [],
-    summary: ''
-  });
+  const [formattedResponse, setFormattedResponse] = useState(() => createEmptyResponse());
   const [formData, setFormData] = useState({
     insights_number: '5',
     summary_insights_number: '10',
@@ -15,75 +13,101 @@ export const TestWorkflow = () => {
     file_content: ''
   });
 
+  const updateResponse = (data) => {
+    console.log('🔄 Updating Response States:', data);
+    setResponse(data);
+    const transformed = transformDifyResponse(data);
+    console.log('🔄 Transformed Data:', transformed);
+    setFormattedResponse(transformed);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setResponse('');
-    setFormattedResponse({ output: [], summary: '' });
+    setResponse(null);
+    setFormattedResponse(createEmptyResponse());
     
     try {
-      const response = await fetch('https://dify.analyserinsights.com/v1/workflows/run', {
+      const result = await fetch('/api/workflows/run', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.DIFY_API_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          inputs: {
-            insights_number: formData.insights_number,
-            summary_insights_number: formData.summary_insights_number,
-            language: formData.language,
-            file_upload: formData.file_content
-          },
-          response_mode: 'streaming',
+          inputs: formData,
+          response_mode: 'blocking',
           user: 'test-user-1'
         })
       });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      if (!result.ok) {
+        throw new Error(`API error: ${result.status}`);
       }
 
-      const reader = response.body.getReader();
-      let buffer = '';
-      const decoder = new TextDecoder('utf-8');
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim() || !line.startsWith('data: ')) continue;
-          
-          try {
-            const jsonStr = line.slice(5);
-            const eventData = JSON.parse(jsonStr);
-            
-            if (eventData.data?.outputs?.text) {
-              setResponse(prev => prev + eventData.data.outputs.text + '\n');
-              
-              if (eventData.event === 'workflow_finished') {
-                setFormattedResponse({
-                  output: eventData.data.outputs.text.split('\n').filter(Boolean),
-                  summary: eventData.data.outputs.summary || ''
-                });
-              }
-            }
-          } catch (e) {
-            console.warn('Failed to parse SSE message:', line);
-          }
-        }
-      }
+      const data = await result.json();
+      console.log('🌟 API Response:', data);
+      
+      // Set raw response first
+      setResponse(data);
+      
+      // Transform and set formatted response
+      const transformed = transformDifyResponse(data);
+      console.log('🔄 Transformed Response:', transformed);
+      setFormattedResponse(transformed);
     } catch (error) {
-      console.error('Error:', error);
-      setResponse(`Error: ${error.message}`);
+      console.error('❌ Error:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const processStreamingResponse = (eventData) => {
+    if (eventData.event === 'workflow_finished' && eventData.data?.outputs) {
+      const { text } = eventData.data.outputs;
+      
+      // Extract insights and summary sections
+      const insightsMatch = text.match(/Инсайти:\n([\s\S]*?)(?=\n\n|$)/);
+      const summaryMatch = text.match(/<Резюме и Изводи>\n([\s\S]*?)(?=<\/Резюме и Изводи>|$)/);
+      
+      setFormattedResponse({
+        output: insightsMatch ? [insightsMatch[1]] : [],
+        summary: summaryMatch ? summaryMatch[1].trim() : '',
+        whole_output: [text],
+        whole_summary: summaryMatch ? `<Резюме и Изводи>\n${summaryMatch[1]}\n</Резюме и Изводи>` : ''
+      });
+      
+      setResponse(text);
+    }
+  };
+
+  const TestResponse = ({ response, formattedResponse }) => {
+    if (!response) return null;
+
+    console.log('📦 TestResponse Props:', { response, formattedResponse });
+
+    // Extract the correct data structure
+    const responseData = response?.outputs || response;
+    
+    const downloadProps = {
+      output: Array.isArray(responseData.output) ? responseData.output : [],
+      summary: responseData.summary || '',
+      whole_output: Array.isArray(responseData.whole_output) ? responseData.whole_output : [],
+      whole_summary: responseData.whole_summary || ''
+    };
+
+    console.log('📦 Download Props:', downloadProps);
+
+    return (
+      <div className="mt-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Test Response</h3>
+          <DownloadButtons {...downloadProps} />
+        </div>
+        <pre className="bg-gray-100 p-4 rounded overflow-auto">
+          {JSON.stringify(responseData, null, 2)}
+        </pre>
+      </div>
+    );
   };
 
   return (
@@ -152,18 +176,13 @@ export const TestWorkflow = () => {
       </form>
 
       {response && (
-        <div className="mt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl mb-2">Response:</h3>
-            <DownloadButtons 
-              output={formattedResponse.output}
-              summary={formattedResponse.summary}
-            />
-          </div>
-          <pre className="bg-gray-100 p-4 rounded overflow-x-auto whitespace-pre-wrap">
-            {response}
-          </pre>
-        </div>
+        <>
+          console.log('🌟 Step 3 - Rendering Response:', response);
+          <TestResponse 
+            response={response}
+            formattedResponse={formattedResponse}
+          />
+        </>
       )}
     </div>
   );

@@ -38,23 +38,19 @@ export class WorkflowStateManager {
   }
 
   private static updateWorkflowList(workflowRunId: string): void {
-    const listKey = `${this.STORAGE_PREFIX}list`;
-    const storedList = sessionStorage.getItem(listKey);
-    const workflowList: string[] = storedList ? JSON.parse(storedList) : [];
-
-    // Add new workflow if not exists
-    if (!workflowList.includes(workflowRunId)) {
-      workflowList.unshift(workflowRunId);
+    try {
+      const listKey = `${this.STORAGE_PREFIX}list`;
+      const storedList = sessionStorage.getItem(listKey);
+      const workflowList: string[] = storedList ? JSON.parse(storedList) : [];
       
-      // Keep only recent workflows
-      if (workflowList.length > this.MAX_STORED_WORKFLOWS) {
-        const removed = workflowList.pop();
-        if (removed) {
-          sessionStorage.removeItem(this.getStorageKey(removed));
-        }
+      if (!workflowList.includes(workflowRunId)) {
+        workflowList.unshift(workflowRunId);
+        // Keep only the latest workflows
+        const updatedList = workflowList.slice(0, this.MAX_STORED_WORKFLOWS);
+        sessionStorage.setItem(listKey, JSON.stringify(updatedList));
       }
-      
-      sessionStorage.setItem(listKey, JSON.stringify(workflowList));
+    } catch (error) {
+      console.error('Error updating workflow list:', error);
     }
   }
 

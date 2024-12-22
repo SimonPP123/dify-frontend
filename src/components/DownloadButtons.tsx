@@ -1,73 +1,86 @@
-import React from 'react';
+import { useMemo } from 'react';
 import { saveAs } from 'file-saver';
-import { Packer } from 'docx';
 import { generatePDF, generateDOCX } from '../utils/documentGenerator';
+import { DownloadableContent } from '../types/workflow';
+import { Packer } from 'docx';
 
-interface DownloadButtonsProps {
-  output: string[];
-  summary?: string;
-}
+interface DownloadButtonsProps extends DownloadableContent {}
 
-export const DownloadButtons: React.FC<DownloadButtonsProps> = ({ output, summary }) => {
-  const hasData = output?.length > 0;
+export const DownloadButtons: React.FC<DownloadButtonsProps> = ({ 
+  output, 
+  summary,
+  whole_output,
+  whole_summary 
+}) => {
+  console.log('🎯 DownloadButtons Props:', { 
+    output, 
+    summary,
+    whole_output,
+    whole_summary
+  });
 
-  const validateData = (data: any[]) => {
-    return Array.isArray(data) ? data : [];
-  };
+  const hasData = useMemo(() => {
+    const hasOutput = Array.isArray(output) && output.some(item => item?.length > 0);
+    const hasWholeOutput = Array.isArray(whole_output) && whole_output.some(item => item?.length > 0);
+    const hasSummary = typeof summary === 'string' && summary.length > 0;
+    const hasWholeSummary = typeof whole_summary === 'string' && whole_summary.length > 0;
+
+    console.log('🔍 Data Validation:', {
+      hasOutput,
+      hasWholeOutput,
+      hasSummary,
+      hasWholeSummary,
+      outputLength: output?.length,
+      wholeOutputLength: whole_output?.length,
+      summaryLength: summary?.length,
+      wholeSummaryLength: whole_summary?.length
+    });
+
+    return hasOutput || hasWholeOutput || hasSummary || hasWholeSummary;
+  }, [output, whole_output, summary, whole_summary]);
 
   const handlePDFDownload = async () => {
-    if (!hasData) return;
     try {
-      const validatedOutput = validateData(output);
+      const contentToUse = output?.length ? output : whole_output || [];
+      const summaryToUse = summary || whole_summary || '';
       
-      console.log('Validated PDF data:', {
-        output: validatedOutput,
-        summary
-      });
-      
-      const doc = generatePDF(validatedOutput, summary);
+      const doc = generatePDF(contentToUse, summaryToUse);
       const blob = doc.output('blob');
       saveAs(blob, 'analysis-report.pdf');
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('PDF Generation Error:', error);
     }
   };
 
   const handleDOCXDownload = async () => {
-    if (!hasData) return;
     try {
-      const validatedOutput = validateData(output);
+      const contentToUse = output?.length ? output : whole_output || [];
+      const summaryToUse = summary || whole_summary || '';
       
-      console.log('Validated DOCX data:', {
-        output: validatedOutput,
-        summary
-      });
-      
-      const doc = generateDOCX(validatedOutput, summary);
+      const doc = generateDOCX(contentToUse, summaryToUse);
       const blob = await Packer.toBlob(doc);
       saveAs(blob, 'analysis-report.docx');
     } catch (error) {
-      console.error('Error generating DOCX:', error);
+      console.error('DOCX Generation Error:', error);
     }
   };
 
+  if (!hasData) {
+    console.log('❌ No data for downloads');
+    return null;
+  }
+
   return (
-    <div className="flex gap-4">
+    <div className="flex space-x-2">
       <button
         onClick={handlePDFDownload}
-        disabled={!hasData}
-        className={`px-4 py-2 text-white rounded-md transition-colors ${
-          hasData ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'
-        }`}
+        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
       >
         Download PDF
       </button>
       <button
         onClick={handleDOCXDownload}
-        disabled={!hasData}
-        className={`px-4 py-2 text-white rounded-md transition-colors ${
-          hasData ? 'bg-green-600 hover:bg-green-700' : 'bg-green-300 cursor-not-allowed'
-        }`}
+        className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
       >
         Download DOCX
       </button>

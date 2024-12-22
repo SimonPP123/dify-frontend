@@ -1,17 +1,38 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
-export function errorHandler(err: any, req: NextApiRequest, res: NextApiResponse) {
-  console.error('API Error:', err);
-
-  if (err.name === 'AbortError') {
-    return res.status(504).json({ error: 'Request timeout' });
+export class WorkflowError extends Error {
+  constructor(
+    message: string,
+    public statusCode: number = 500,
+    public context?: any
+  ) {
+    super(message);
+    this.name = 'WorkflowError';
   }
+}
 
-  const statusCode = err.status || err.statusCode || 500;
-  const message = err.message || 'Internal server error';
+// Custom error logger
+const logError = (error: WorkflowError, requestId?: string) => {
+  console.error({
+    timestamp: new Date().toISOString(),
+    name: error.name,
+    message: error.message,
+    statusCode: error.statusCode,
+    requestId,
+    context: error.context
+  });
+};
 
-  res.status(statusCode).json({
-    error: message,
-    requestId: req.headers['x-request-id']
+export function errorHandler(err: any, req: NextApiRequest, res: NextApiResponse) {
+  const error = err instanceof WorkflowError ? err : new WorkflowError(err.message);
+  const requestId = req.headers['x-request-id'] as string;
+  
+  // Log error for debugging
+  logError(error, requestId);
+
+  res.status(error.statusCode).json({
+    error: error.message,
+    requestId,
+    timestamp: new Date().toISOString()
   });
 } 

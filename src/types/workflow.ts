@@ -8,7 +8,6 @@ export interface WorkflowInputs {
   'sys.files'?: string[];
   selectedApp?: string;
   selectedColumns: string[];
-  selectedQuestionOptions: QuestionSection[];
   [key: string]: any;
 }
 
@@ -62,8 +61,35 @@ export interface WorkflowEvent {
   };
 }
 
+export interface WorkflowResponse {
+  output: string[];
+  summary: string;
+  whole_output?: string[];
+  whole_summary?: string;
+}
+
+export interface StreamResponse {
+  event: 'workflow_started' | 'node_started' | 'node_finished' | 'workflow_finished';
+  task_id: string;
+  workflow_run_id: string;
+  data: {
+    outputs?: {
+      text?: string;
+    };
+    status?: WorkflowStatus;
+    error?: string;
+  };
+}
+
 export interface QuestionSection {
   question: string;
   options: string[];
   selectedOptions: string[];
+}
+
+export interface DownloadableContent {
+  output: string[];
+  summary?: string;
+  whole_output?: string[];
+  whole_summary?: string;
 }

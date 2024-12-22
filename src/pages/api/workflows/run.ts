@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getApiUrl } from '../../../utils/api';
+import { transformDifyResponse } from '../../../utils/responseTransformer';
 
 // Add proper validation interface
 interface WorkflowRequest {
@@ -67,6 +68,15 @@ const validateRequest = (body: any): WorkflowRequest => {
   return validatedBody;
 };
 
+const formatResponse = (data: any) => {
+  // Always return in consistent format
+  return {
+    data: {
+      outputs: transformDifyResponse(data)
+    }
+  };
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -84,6 +94,32 @@ export default async function handler(
     const validatedBody = validateRequest(req.body);
     console.log('✅ Request validation passed');
     
+    // For blocking mode, handle differently
+    if (validatedBody.response_mode === 'blocking') {
+      const response = await fetch(getApiUrl('/v1/workflows/run'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
+        },
+        body: JSON.stringify(validatedBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return res.json({
+        outputs: data.outputs || {
+          output: data.data?.outputs?.output || [],
+          summary: data.data?.outputs?.summary || '',
+          whole_output: data.data?.outputs?.whole_output || [],
+          whole_summary: data.data?.outputs?.whole_summary || ''
+        }
+      });
+    }
+
     // Set SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -137,7 +173,10 @@ export default async function handler(
         if (done) {
           console.log('✨ Stream completed');
           if (buffer.trim()) {
-            res.write(`data: ${buffer}\n\n`);
+            // Transform before sending
+            const data = JSON.parse(buffer);
+            const transformed = transformDifyResponse(data);
+            res.write(`data: ${JSON.stringify(transformed)}\n\n`);
           }
           res.end();
           break;

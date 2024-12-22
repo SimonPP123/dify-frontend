@@ -84,72 +84,22 @@ export const useDifyAPI = () => {
     }
   };
 
-  const handleWorkflowEvent = useCallback((eventData) => {
-    try {
-      const event = JSON.parse(eventData);
+  const processResponse = (eventData) => {
+    if (eventData.event === 'workflow_finished' && eventData.data?.outputs) {
+      const { text } = eventData.data.outputs;
       
-      switch(event.event) {
-        case 'workflow_started':
-          if (event.workflow_run_id) {
-            console.log('Workflow started:', event.workflow_run_id);
-            setCurrentWorkflowId(event.workflow_run_id);
-            setProgress(5);
-            setCurrentStep('Starting workflow...');
-            setStreamingResponse('Workflow started...\n');
-          }
-          break;
-        
-        case 'node_started':
-          if (event.data?.title) {
-            const nodeTitle = event.data.title;
-            const node = WORKFLOW_NODES[nodeTitle] || { 
-              weight: 10, 
-              label: `Processing ${nodeTitle}...` 
-            };
-            
-            console.log('Node started:', nodeTitle);
-            setCurrentStep(node.label);
-            setStreamingResponse(prev => prev + `${node.label}\n`);
-            
-            if (nodeTitle.startsWith('Въпрос')) {
-              const questionNum = parseInt(nodeTitle.match(/\d+/)?.[0] || '0');
-              setProgress(prev => Math.min(40 + (questionNum * 15), 90));
-            } else {
-              setProgress(prev => Math.min(prev + node.weight, 95));
-            }
-          }
-          break;
-        
-        case 'node_finished':
-          if (event.data?.title) {
-            const nodeTitle = event.data.title;
-            setCompletedNodes(prev => new Set([...prev, nodeTitle]));
-            if (event.data?.outputs?.text) {
-              setStreamingResponse(prev => prev + event.data.outputs.text + '\n');
-            }
-          }
-          break;
-        
-        case 'workflow_finished':
-          setProgress(100);
-          setCurrentStep('Completed');
-          if (event.data?.outputs) {
-            setFullResponse(event.data.outputs);
-          }
-          setLoading(false);
-          break;
-        
-        case 'error':
-          const errorMsg = event.data?.error || 'Unknown error';
-          setError(errorMsg);
-          setLoading(false);
-          throw new Error(errorMsg);
-      }
-    } catch (error) {
-      console.error('Error processing workflow event:', error);
-      setError('Error processing workflow response');
+      // Extract insights and summary sections
+      const insightsMatch = text.match(/Инсайти:\n([\s\S]*?)(?=\n\n|$)/);
+      const summaryMatch = text.match(/<Резюме и Изводи>\n([\s\S]*?)(?=<\/Резюме и Изводи>|$)/);
+      
+      setFullResponse({
+        output: insightsMatch ? insightsMatch[1].split('\n').filter(Boolean) : [],
+        summary: summaryMatch ? summaryMatch[1].trim() : '',
+        whole_output: [text],
+        whole_summary: summaryMatch ? `<Резюме и Изводи>\n${summaryMatch[1]}\n</Резюме и Изводи>` : ''
+      });
     }
-  }, [setCurrentWorkflowId, setProgress, setCurrentStep, setStreamingResponse, setCompletedNodes, setFullResponse, setLoading, setError]);
+  };
 
   const sendMessage = useCallback(async ({ inputs, response_mode = 'streaming', user }) => {
     if (abortController.current) {
@@ -174,35 +124,50 @@ export const useDifyAPI = () => {
         user
       });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
+      const handleStreamResponse = async (response) => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
 
-        buffer += decoder.decode(value, { stream: true });
-        const messages = buffer.split('\n\n');
-        buffer = messages.pop() || '';
-
-        for (const message of messages) {
-          if (!message.trim() || !message.startsWith('data: ')) continue;
-          
-          const eventData = message.slice(5).trim();
-          if (!eventData) continue;
-
-          handleWorkflowEvent(eventData);
+            for (const line of lines) {
+              if (!line.trim() || !line.startsWith('data: ')) continue;
+              
+              try {
+                const eventData = JSON.parse(line.slice(5));
+                const result = processResponse(eventData);
+                if (result) {
+                  setFullResponse(result);
+                } else if (eventData.data?.outputs?.text) {
+                  setStreamingResponse(prev => prev + eventData.data.outputs.text);
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE message:', e);
+              }
+            }
+          }
+        } catch (error) {
+          throw new Error(`Stream reading failed: ${error.message}`);
         }
-      }
+      };
+
+      await handleStreamResponse(response);
 
       return { success: true };
     } catch (error) {
       setError(error.message || 'Unknown error');
-      setLoading(false);
+      setLoading(false); 
       throw error;
     }
-  }, [handleWorkflowEvent, sendMessageWithRetry, setError, setLoading]);
+  }, []);
 
   const checkConnection = useCallback(async () => {
     try {

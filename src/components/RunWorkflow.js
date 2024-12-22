@@ -12,6 +12,7 @@ import { DownloadButtons } from './DownloadButtons';
 import { CSVPreview } from './CSVPreview';
 import { QuestionSelector } from './QuestionSelector';
 import { ColumnSelector } from './ColumnSelector';
+import { transformDifyResponse, createEmptyResponse } from '../utils/responseTransformer';
 
 const schema = yup.object().shape({
   insights_number: yup.string()
@@ -408,7 +409,7 @@ export default function RunWorkflow() {
             'sys.app_id': DIFY_APPS.APP_1.ID,
             'sys.user_id': 'test-user-1'
           },
-          response_mode: 'streaming',
+          response_mode: 'blocking',
           user: 'test-user-1'
         })
       });
@@ -417,39 +418,12 @@ export default function RunWorkflow() {
         throw new Error(`API error: ${response.status}`);
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let result = {};
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim() || !line.startsWith('data: ')) continue;
-          
-          try {
-            const jsonStr = line.slice(5); // Remove 'data: ' prefix
-            const eventData = JSON.parse(jsonStr);
-            
-            // Accumulate the response data
-            if (eventData.event === 'workflow_finished' && eventData.data?.outputs) {
-              result = { ...result, ...eventData.data.outputs };
-            } else if (eventData.data?.outputs?.text) {
-              result.text = (result.text || '') + eventData.data.outputs.text;
-            }
-          } catch (e) {
-            console.warn('Failed to parse SSE message:', line);
-          }
-        }
-      }
-
-      setTestResponse(result);
+      const data = await response.json();
+      console.log('📦 Test API Response:', data);
+      
+      const transformedData = transformDifyResponse(data);
+      console.log('📦 Transformed Test Response:', transformedData);
+      setTestResponse(transformedData);
     } catch (error) {
       console.error('Test API call failed:', error);
       setTestResponse({ error: error.message });
@@ -539,7 +513,15 @@ export default function RunWorkflow() {
 
       {testResponse && (
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-lg font-medium mb-2">Test Response</h3>
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="text-lg font-medium">Test Response</h3>
+            <DownloadButtons 
+              output={testResponse.output || []}
+              summary={testResponse.summary || ''}
+              whole_output={testResponse.whole_output || []}
+              whole_summary={testResponse.whole_summary || ''}
+            />
+          </div>
           <pre className="whitespace-pre-wrap">
             {JSON.stringify(testResponse, null, 2)}
           </pre>
