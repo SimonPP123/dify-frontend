@@ -139,7 +139,17 @@ export default function RunWorkflow() {
     setFinalResponse(null);
     
     try {
-      console.log('Submitting form with data:', data);
+      console.log('Form submission:', {
+        data,
+        selectedColumns,
+        questions: questions.map(q => ({
+          question: q.question,
+          options: q.options,
+          selectedOptions: q.selectedOptions
+        })),
+        userId: session.user.id,
+        appId: DIFY_APPS.APP_1.ID
+      });
       
       const validatedInputs = validateInputs({
         ...data,
@@ -153,14 +163,20 @@ export default function RunWorkflow() {
       
       console.log('Validated inputs:', validatedInputs);
       
-      const result = await sendMessage({
+      const payload = {
         inputs: {
           ...validatedInputs,
           'sys.app_id': DIFY_APPS.APP_1.ID,
         },
         response_mode: 'streaming',
         user: session.user.id
-      });
+      };
+
+      console.log('Sending workflow request:', payload);
+      
+      const result = await sendMessage(payload);
+      
+      console.log('Workflow response:', result);
       
       if (!result.success) {
         throw new Error('Workflow submission failed');

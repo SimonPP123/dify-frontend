@@ -43,7 +43,16 @@ export const useDifyAPI = () => {
 
   const sendMessageWithRetry = async (payload, retryCount = 0) => {
     try {
-      const response = await fetch(`${process.env.DIFY_API_URL}/api/v1/workflows/run`, {
+      console.log('Attempting to send workflow request:', {
+        url: `${process.env.DIFY_API_URL}/v1/workflows/run`,
+        payload,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.DIFY_API_KEY}`
+        }
+      });
+
+      const response = await fetch(`${process.env.DIFY_API_URL}/v1/workflows/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -52,12 +61,21 @@ export const useDifyAPI = () => {
         body: JSON.stringify(payload)
       });
       
+      console.log('Workflow API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.text();
+        console.error('API Error Response:', errorData);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData}`);
       }
       
       return response;
     } catch (error) {
+      console.error('Workflow API Error:', error);
       if (retryCount < MAX_RETRIES) {
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * Math.pow(2, retryCount)));
         return sendMessageWithRetry(payload, retryCount + 1);
