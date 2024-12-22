@@ -205,7 +205,7 @@ export default function RunWorkflow() {
     };
   }, [currentWorkflowId, fetchWorkflowResult, setError]);
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
+  const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
       selectedApp: DIFY_APPS.APP_1.ID
@@ -266,16 +266,6 @@ export default function RunWorkflow() {
       ].join('\n');
 
       setValue('file_upload', markdownTable);
-
-      console.log('Form values after file upload:', {
-        file_upload: markdownTable,
-        selectedColumns,
-        questions: parsedQuestions,
-        insights_number: getValues('insights_number'),
-        summary_insights_number: getValues('summary_insights_number'),
-        language: getValues('language')
-      });
-
     } catch (err) {
       console.error('Error reading file:', err);
       setError('Error reading file content');
@@ -398,6 +388,20 @@ export default function RunWorkflow() {
         <button
           type="submit"
           disabled={loading || !session}
+          onClick={() => {
+            console.log('Button clicked, form state:', {
+              isValid: Object.keys(errors).length === 0,
+              errors,
+              values: {
+                insights_number: getValues('insights_number'),
+                summary_insights_number: getValues('summary_insights_number'),
+                language: getValues('language'),
+                file_upload: getValues('file_upload'),
+                selectedColumns: getValues('selectedColumns'),
+                selectedQuestionOptions: getValues('selectedQuestionOptions')
+              }
+            });
+          }}
           className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
         >
           {!session ? 'Please sign in' : loading ? 'Processing...' : 'Run Workflow'}
