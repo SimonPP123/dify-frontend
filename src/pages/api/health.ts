@@ -13,12 +13,18 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<HealthResponse | { error: string }>
 ) {
-  console.log('Health check endpoint hit');
-  console.log('Request headers:', req.headers);
+  console.log('=== Health Check Debug ===');
+  console.log('Request URL:', req.url);
   console.log('Request method:', req.method);
+  console.log('Request headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Environment:', {
+    NODE_ENV: process.env.NODE_ENV,
+    DIFY_API_URL: process.env.DIFY_API_URL,
+    PORT: process.env.PORT
+  });
+  console.log('========================');
 
   if (req.method !== 'GET') {
-    console.log('Method not allowed:', req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
