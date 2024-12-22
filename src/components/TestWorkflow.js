@@ -177,7 +177,6 @@ export const TestWorkflow = () => {
 
       {response && (
         <>
-          console.log('🌟 Step 3 - Rendering Response:', response);
           <TestResponse 
             response={response}
             formattedResponse={formattedResponse}

@@ -4,9 +4,7 @@ import { generatePDF, generateDOCX } from '../utils/documentGenerator';
 import { DownloadableContent } from '../types/workflow';
 import { Packer } from 'docx';
 
-interface DownloadButtonsProps extends DownloadableContent {}
-
-export const DownloadButtons: React.FC<DownloadButtonsProps> = ({ 
+export const DownloadButtons: React.FC<DownloadableContent> = ({ 
   output, 
   summary,
   whole_output,
