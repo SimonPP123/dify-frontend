@@ -65,6 +65,17 @@ const validateRequest = (body: any): WorkflowRequest => {
     throw new Error('statistics_selected must be a comma-separated string');
   }
 
+  // Validate question_rows_selected format
+  const questions = question_rows_selected.split('|');
+  for (const question of questions) {
+    const parts = question.split(',');
+    // Update validation to match "Question {number} {question}" format
+    const questionFormat = /^Question \d+ .+/;
+    if (!questionFormat.test(parts[0])) {
+      throw new Error('Invalid question format in question_rows_selected. Expected format: "Question {number} {question}"');
+    }
+  }
+
   return {
     inputs: {
       insights_number,

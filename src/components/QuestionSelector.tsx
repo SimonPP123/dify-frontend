@@ -22,24 +22,53 @@ export const QuestionSelector: React.FC<QuestionSelectorProps> = ({
     );
   };
 
-  const handleSelectAll = (questionIndex: number) => {
-    onOptionsChange(questionIndex, [...questions[questionIndex].options]);
+  const handleOptionSelect = (questionIndex: number, option: string, isSelectAll: boolean = false) => {
+    const question = questions[questionIndex];
+    
+    if (isSelectAll) {
+      if (option === 'select') {
+        const validOptions = question.options
+          .filter(opt => opt && opt.trim() !== '');
+        onOptionsChange(questionIndex, validOptions);
+        return;
+      }
+      if (option === 'deselect') {
+        onOptionsChange(questionIndex, []);
+        return;
+      }
+    }
+
+    const optionStr = String(option);
+    const newSelection = question.selectedOptions.includes(optionStr)
+      ? question.selectedOptions.filter(opt => opt !== optionStr)
+      : [...question.selectedOptions, optionStr];
+    onOptionsChange(questionIndex, newSelection);
   };
 
-  const handleDeselectAll = (questionIndex: number) => {
-    onOptionsChange(questionIndex, []);
-  };
+  const handleAllQuestionsSelection = (shouldSelect: boolean) => {
+    const updates = questions.map((question, index) => {
+      const validOptions = question.options
+        .filter(opt => opt && opt.trim() !== '');
+      
+      return {
+        index,
+        newSelection: shouldSelect ? validOptions : []
+      };
+    });
 
-  const handleGlobalSelectAll = () => {
-    questions.forEach((_, index) => {
-      handleSelectAll(index);
+    updates.forEach(({ index, newSelection }) => {
+      onOptionsChange(index, newSelection);
     });
   };
 
-  const handleGlobalDeselectAll = () => {
-    questions.forEach((_, index) => {
-      handleDeselectAll(index);
-    });
+  const formatQuestionDisplay = (questionText: string, index: number) => {
+    const displayNumber = index + 1;
+    const questionOnly = questionText.split('?')[0] + '?';
+    return `${displayNumber}. ${questionOnly}`;
+  };
+
+  const formatOptionDisplay = (option: string): string => {
+    return option.trim();
   };
 
   return (
@@ -47,20 +76,19 @@ export const QuestionSelector: React.FC<QuestionSelectorProps> = ({
       <div className="flex justify-end space-x-4 mb-4">
         <button
           type="button"
-          onClick={handleGlobalSelectAll}
-          className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+          onClick={() => handleAllQuestionsSelection(true)}
+          className="px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100"
         >
-          Select All Options
+          Select All Rows
         </button>
         <button
           type="button"
-          onClick={handleGlobalDeselectAll}
-          className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800"
+          onClick={() => handleAllQuestionsSelection(false)}
+          className="px-4 py-2 text-sm bg-red-50 text-red-600 rounded-md hover:bg-red-100"
         >
-          Deselect All Options
+          Deselect All Rows
         </button>
       </div>
-
       {questions.map((question, index) => (
         <div key={index} className="border rounded-lg p-4">
           <div className="flex justify-between items-center mb-4">
@@ -68,19 +96,21 @@ export const QuestionSelector: React.FC<QuestionSelectorProps> = ({
               className="flex-1 cursor-pointer"
               onClick={() => toggleQuestion(index)}
             >
-              <h3 className="text-lg font-medium">{question.question}</h3>
+              <h3 className="text-lg font-medium">
+                {formatQuestionDisplay(question.questionText, index)}
+              </h3>
             </div>
             <div className="flex space-x-2">
               <button
                 type="button"
-                onClick={() => handleSelectAll(index)}
+                onClick={() => handleOptionSelect(index, 'select', true)}
                 className="text-sm text-blue-600 hover:text-blue-800"
               >
                 Select All
               </button>
               <button
                 type="button"
-                onClick={() => handleDeselectAll(index)}
+                onClick={() => handleOptionSelect(index, 'deselect', true)}
                 className="text-sm text-red-600 hover:text-red-800"
               >
                 Deselect All
@@ -99,44 +129,26 @@ export const QuestionSelector: React.FC<QuestionSelectorProps> = ({
           </div>
           {expandedQuestions.includes(index) && (
             <div className="grid grid-cols-3 gap-3">
-              {question.options.map((option) => (
+              {question.options.filter(Boolean).map((option, optionIndex) => (
                 <div
-                  key={option}
-                  onClick={() => {
-                    const newSelection = question.selectedOptions.includes(option)
-                      ? question.selectedOptions.filter(opt => opt !== option)
-                      : [...question.selectedOptions, option];
-                    onOptionsChange(index, newSelection);
-                  }}
+                  key={`${index}-${optionIndex}`}
+                  onClick={() => handleOptionSelect(index, option)}
                   className={`p-3 cursor-pointer rounded-md border ${
                     question.selectedOptions.includes(option)
                       ? 'bg-blue-50 border-blue-500'
                       : 'bg-white border-gray-200 hover:bg-gray-50'
-                  } transition-colors duration-200 ease-in-out flex items-center justify-between`}
+                  }`}
                 >
-                  <span className="text-sm truncate">{option}</span>
-                  {question.selectedOptions.includes(option) && (
-                    <svg 
-                      className="h-5 w-5 text-blue-500"
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
+                  <span className="text-sm block w-full">
+                    {formatOptionDisplay(option)}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
       ))}
-      {error && (
-        <p className="text-red-500 text-sm mt-1">{error}</p>
-      )}
+      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </div>
   );
 };

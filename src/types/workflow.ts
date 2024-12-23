@@ -82,7 +82,8 @@ export interface StreamResponse {
 }
 
 export interface QuestionSection {
-  question: string;
+  questionNumber: string;
+  questionText: string;
   options: string[];
   selectedOptions: string[];
 }

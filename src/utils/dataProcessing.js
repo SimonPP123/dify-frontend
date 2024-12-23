@@ -43,41 +43,33 @@ export const validateInputs = (inputs, userId) => {
         break;
 
       case 'columns_selected':
-        if (Array.isArray(value)) {
-          processedInputs[key] = value.join(',');
-        } else if (typeof value === 'string') {
-          processedInputs[key] = value;
-        } else {
-          throw new Error('columns_selected must be an array or string');
-        }
+        processedInputs[key] = Array.isArray(value) ? value.join(',') : value;
         break;
 
       case 'question_rows_selected':
         if (Array.isArray(value)) {
-          // If it's an array of arrays (from the form), join with | for questions and , for options
-          if (Array.isArray(value[0])) {
-            processedInputs[key] = value
-              .map(question => question.join(','))
-              .join('|');
-          } else {
-            // If it's a simple array, just join with commas
-            processedInputs[key] = value.join(',');
-          }
+          const formattedQuestions = value
+            .filter(question => question.selectedOptions.length > 0)
+            .map(question => {
+              const questionText = `Question ${question.questionNumber} ${question.questionText}`;
+              // Clean the options before joining
+              const cleanedOptions = question.selectedOptions.map(opt => 
+                opt.replace(/^,?\s*/, '').split(/\s*,\s*/)[0].trim()
+              );
+              return `${questionText},${cleanedOptions.join(',')}`;
+            })
+            .join('|');
+            
+          processedInputs[key] = formattedQuestions;
         } else if (typeof value === 'string') {
           processedInputs[key] = value;
         } else {
-          throw new Error('question_rows_selected must be an array or string');
+          throw new Error('Invalid question_rows_selected format');
         }
         break;
 
       case 'statistics_selected':
-        if (Array.isArray(value)) {
-          processedInputs[key] = value.join(',');
-        } else if (typeof value === 'string') {
-          processedInputs[key] = value;
-        } else {
-          throw new Error('statistics_selected must be an array or string');
-        }
+        processedInputs[key] = Array.isArray(value) ? value.join(',') : value;
         break;
 
       default:

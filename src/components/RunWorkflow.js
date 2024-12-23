@@ -227,29 +227,44 @@ export default function RunWorkflow() {
   const handleFileRead = async (file) => {
     try {
       const text = await file.text();
-      const lines = text.split('\n');
+      
+      // Remove any BOM and normalize line endings
+      const normalizedText = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+      const lines = normalizedText.split('\n');
       
       const parsedQuestions = [];
       let currentQuestion = null;
+      let questionNumber = 0;
       
       for (let i = 0; i < lines.length; i++) {
-        const columns = lines[i].split(',').map(col => col.trim());
-        console.log('Processing line:', i, 'Column 1:', columns[0], 'Column 2:', columns[1]);
+        const row = lines[i].split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/);
+        const firstColumn = row[0]?.trim().replace(/^"|"$/g, '');
         
-        if (columns[0].match(/^В\d+/)) {
+        // Skip header row
+        if (firstColumn === 'Въпрос') continue;
+        
+        if (firstColumn && !firstColumn.startsWith(',')) {
+          questionNumber++;
           if (currentQuestion) {
             parsedQuestions.push(currentQuestion);
           }
+
           currentQuestion = {
-            question: columns[0],
-            options: [],
+            questionNumber: questionNumber.toString(),
+            questionText: firstColumn,
+            headerValue: row[1]?.trim().replace(/^"|"$/g, '') || 'Total',
+            options: [row[1]?.trim().replace(/^"|"$/g, '') || 'Total'],
+            cleanOptions: [row[1]?.trim().replace(/^"|"$/g, '') || 'Total'],
             selectedOptions: []
           };
-          console.log('New question found:', currentQuestion);
         } 
-        else if (currentQuestion && columns[1] && columns[1] !== 'Total') {
-          currentQuestion.options.push(columns[1]);
-          console.log('Added option:', columns[1], 'to question:', currentQuestion.question);
+        else if (currentQuestion && row.length > 1) {
+          const optionText = row[1]?.trim().replace(/^"|"$/g, '');
+          
+          if (optionText) {
+            currentQuestion.options.push(optionText);
+            currentQuestion.cleanOptions.push(optionText);
+          }
         }
       }
       
@@ -257,37 +272,39 @@ export default function RunWorkflow() {
         parsedQuestions.push(currentQuestion);
       }
 
-      console.log('Final parsed questions:', parsedQuestions);
       setQuestions(parsedQuestions);
-      setValue('selectedQuestionOptions', parsedQuestions, { 
-        shouldValidate: true,
-        shouldDirty: true 
-      });
+      setValue('question_rows_selected', parsedQuestions);
       
-      const headers = lines[0].split(',').map(h => h.trim());
+      // Process headers
+      const headers = lines[0].split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+        .map(h => h.trim().replace(/^"|"$/g, ''));
+      
       setSelectedColumns([...headers]);
-      setValue('selectedColumns', headers, {
-        shouldValidate: true,
-        shouldDirty: true
-      });
+      setValue('selectedColumns', headers);
       
       setCsvData({
         headers,
-        rows: lines.slice(1).map(line => line.split(',').map(cell => cell.trim()))
+        rows: lines.slice(1).map(line => 
+          line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+            .map(cell => cell.trim().replace(/^"|"$/g, ''))
+        )
       });
 
+      // Create markdown table with preserved formatting
       const markdownTable = [
         `| ${headers.join(' | ')} |`,
         `| ${headers.map(() => '---').join(' | ')} |`,
-        ...lines.slice(1).map(line => `| ${line.split(',').join(' | ')} |`)
+        ...lines.slice(1).map(line => 
+          `| ${line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/)
+            .map(cell => cell.trim().replace(/^"|"$/g, ''))
+            .join(' | ')} |`
+        )
       ].join('\n');
 
-      setValue('file_upload', markdownTable, {
-        shouldValidate: true,
-        shouldDirty: true
-      });
-    } catch (err) {
-      console.error('Error reading file:', err);
+      setValue('file_upload', markdownTable);
+
+    } catch (error) {
+      console.error('Error reading file:', error);
       setError('Error reading file content');
     }
   };
@@ -305,9 +322,35 @@ export default function RunWorkflow() {
   };
 
   const handleQuestionOptionsChange = (questionIndex, selectedOptions) => {
-    const updatedQuestions = [...questions];
-    updatedQuestions[questionIndex].selectedOptions = selectedOptions;
-    setQuestions(updatedQuestions);
+    console.group('🔍 Question Options Change Debug');
+    console.log('Index:', questionIndex);
+    console.log('Raw Selected Options:', selectedOptions);
+    
+    setQuestions(prevQuestions => {
+      const updatedQuestions = [...prevQuestions];
+      
+      updatedQuestions[questionIndex] = {
+        ...updatedQuestions[questionIndex],
+        selectedOptions: selectedOptions
+      };
+
+      const formattedData = updatedQuestions
+        .filter(q => q.selectedOptions?.length > 0)
+        .map(q => {
+          const questionStr = `Question ${q.questionNumber} ${q.questionText}`;
+          
+          const selectedValues = q.selectedOptions;
+
+          return `${questionStr},${selectedValues.join(',')}`;
+        })
+        .join('|');
+
+      console.log('📤 Final Formatted Data:', formattedData);
+      console.groupEnd();
+
+      setValue('question_rows_selected', formattedData);
+      return updatedQuestions;
+    });
   };
 
   const handleStatOptionsChange = (options) => {
@@ -393,7 +436,6 @@ export default function RunWorkflow() {
     try {
       const formValues = getValues();
       
-      // Validate required fields
       if (!formValues.insights_number || !formValues.summary_insights_number || 
           !formValues.language || !formValues.file_upload) {
         throw new Error('Please fill in all required fields');
@@ -408,7 +450,10 @@ export default function RunWorkflow() {
           columns_selected: selectedColumns.join(','),
           question_rows_selected: questions
             .filter(q => q.selectedOptions.length > 0)
-            .map(q => q.selectedOptions.join(','))
+            .map(q => {
+              const questionStr = `Question ${q.questionNumber} ${q.questionText}`;
+              return `${questionStr},${q.selectedOptions.join(',')}`;
+            })
             .join('|'),
           statistics_selected: selectedStatOptions.join(','),
           'sys.app_id': DIFY_APPS.APP_1.ID,
@@ -434,7 +479,6 @@ export default function RunWorkflow() {
         throw new Error(errorData.error || `Dify API error: ${response.status}`);
       }
 
-      // Handle streaming response
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
@@ -450,11 +494,10 @@ export default function RunWorkflow() {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
-              const jsonStr = line.slice(6); // Remove 'data: ' prefix
+              const jsonStr = line.slice(6);
               const data = JSON.parse(jsonStr);
               console.log('Parsed chunk:', data);
               
-              // Extract outputs based on event type
               if (data.event === 'workflow_finished' && data.data?.outputs) {
                 const outputs = data.data.outputs;
                 setTestResponse({
@@ -530,11 +573,19 @@ export default function RunWorkflow() {
         )}
 
         {questions.length > 0 && (
-          <QuestionSelector
-            questions={questions}
-            onOptionsChange={handleQuestionOptionsChange}
-            error={errors.selectedQuestionOptions?.message}
-          />
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Question Selection</h3>
+            <QuestionSelector
+              questions={questions.map(q => ({
+                ...q,
+                questionText: q.questionText,
+                options: q.cleanOptions,
+                selectedOptions: q.selectedOptions
+              }))}
+              onOptionsChange={handleQuestionOptionsChange}
+              error={errors.selectedQuestionOptions?.message}
+            />
+          </div>
         )}
 
         <StatisticalOptionsSelector
