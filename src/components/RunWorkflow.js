@@ -447,15 +447,15 @@ export default function RunWorkflow() {
           summary_insights_number: formValues.summary_insights_number,
           language: formValues.language,
           file_upload: formValues.file_upload,
-          columns_selected: selectedColumns.join(','),
+          columns_selected: selectedColumns.join(':::'),
           question_rows_selected: questions
             .filter(q => q.selectedOptions.length > 0)
             .map(q => {
               const questionStr = `Question ${q.questionNumber} ${q.questionText}`;
-              return `${questionStr}::${q.selectedOptions.join(',')}`;
+              return `${questionStr}::${q.selectedOptions.join(':::')}`;
             })
             .join('|'),
-          statistics_selected: selectedStatOptions.join(','),
+          statistics_selected: selectedStatOptions.join(':::'),
           'sys.app_id': DIFY_APPS.APP_1.ID,
           'sys.user_id': session?.user?.id || 'anonymous'
         },

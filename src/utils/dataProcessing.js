@@ -43,7 +43,7 @@ export const validateInputs = (inputs, userId) => {
         break;
 
       case 'columns_selected':
-        processedInputs[key] = Array.isArray(value) ? value.join(',') : value;
+        processedInputs[key] = Array.isArray(value) ? value.join(':::') : value;
         break;
 
       case 'question_rows_selected':
@@ -52,11 +52,10 @@ export const validateInputs = (inputs, userId) => {
             .filter(question => question.selectedOptions.length > 0)
             .map(question => {
               const questionText = `Question ${question.questionNumber} ${question.questionText}`;
-              // Clean the options before joining
               const cleanedOptions = question.selectedOptions.map(opt => 
                 opt.replace(/^,?\s*/, '').split(/\s*,\s*/)[0].trim()
               );
-              return `${questionText}::${cleanedOptions.join(',')}`;
+              return `${questionText}::${cleanedOptions.join(':::')}`;
             })
             .join('|');
             
@@ -69,7 +68,7 @@ export const validateInputs = (inputs, userId) => {
         break;
 
       case 'statistics_selected':
-        processedInputs[key] = Array.isArray(value) ? value.join(',') : value;
+        processedInputs[key] = Array.isArray(value) ? value.join(':::') : value;
         break;
 
       default:

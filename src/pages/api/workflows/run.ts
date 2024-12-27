@@ -68,11 +68,17 @@ const validateRequest = (body: any): WorkflowRequest => {
   // Validate question_rows_selected format
   const questions = question_rows_selected.split('|');
   for (const question of questions) {
-    const parts = question.split('::');
-    // Update validation to match "Question {number} {question}::options" format
+    const [questionPart, optionsPart] = question.split('::');
+    
+    // Validate question format
     const questionFormat = /^Question \d+ .+/;
-    if (!questionFormat.test(parts[0])) {
-      throw new Error('Invalid question format in question_rows_selected. Expected format: "Question {number} {question}::options"');
+    if (!questionFormat.test(questionPart)) {
+      throw new Error('Invalid question format. Expected: "Question {number} {text}::option1:::option2:::option3"');
+    }
+
+    // Validate options exist and format
+    if (!optionsPart || !optionsPart.split(':::').every(opt => opt.trim())) {
+      throw new Error('Invalid options format. Expected options to be separated by :::');
     }
   }
 
