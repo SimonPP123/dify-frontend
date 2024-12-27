@@ -56,7 +56,7 @@ export const validateInputs = (inputs, userId) => {
               const cleanedOptions = question.selectedOptions.map(opt => 
                 opt.replace(/^,?\s*/, '').split(/\s*,\s*/)[0].trim()
               );
-              return `${questionText},${cleanedOptions.join(',')}`;
+              return `${questionText}::${cleanedOptions.join(',')}`;
             })
             .join('|');
             

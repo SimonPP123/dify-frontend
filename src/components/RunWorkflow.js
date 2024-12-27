@@ -341,7 +341,7 @@ export default function RunWorkflow() {
           
           const selectedValues = q.selectedOptions;
 
-          return `${questionStr},${selectedValues.join(',')}`;
+          return `${questionStr}::${selectedValues.join(',')}`;
         })
         .join('|');
 
@@ -452,7 +452,7 @@ export default function RunWorkflow() {
             .filter(q => q.selectedOptions.length > 0)
             .map(q => {
               const questionStr = `Question ${q.questionNumber} ${q.questionText}`;
-              return `${questionStr},${q.selectedOptions.join(',')}`;
+              return `${questionStr}::${q.selectedOptions.join(',')}`;
             })
             .join('|'),
           statistics_selected: selectedStatOptions.join(','),
