@@ -7,7 +7,7 @@ export const TestWorkflow = () => {
   const [response, setResponse] = useState(null);
   const [formattedResponse, setFormattedResponse] = useState(() => createEmptyResponse());
   const [formData, setFormData] = useState({
-    insights_number: '5',
+    insights_number: '1',
     summary_insights_number: '10',
     language: 'English',
     file_content: ''
