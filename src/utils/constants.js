@@ -16,7 +16,7 @@ export const INPUT_FIELDS = {
     label: 'Number of Insights per Question',
     required: true,
     type: 'select',
-    options: ['5', '10', '15', '20', '25']
+    options: ['1', '2', '3', '4', '5']
   },
   SUMMARY_INSIGHTS_NUMBER: {
     variable: 'summary_insights_number',
