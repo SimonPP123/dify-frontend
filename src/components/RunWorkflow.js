@@ -17,7 +17,7 @@ import { transformDifyResponse, createEmptyResponse } from '../utils/responseTra
 
 const schema = yup.object().shape({
   insights_number: yup.string()
-    .oneOf(['5', '10', '15', '20', '25'], 'Please select a valid number of insights')
+    .oneOf(['1', '2', '3', '4', '5'], 'Please select a valid number of insights')
     .required('Number of insights is required'),
   summary_insights_number: yup.string()
     .oneOf(['10', '20', '30', '40', '50'], 'Please select a valid number of summary insights')
@@ -537,7 +537,7 @@ export default function RunWorkflow() {
           name="insights_number"
           register={register}
           errors={errors}
-          options={['5', '10', '15', '20', '25']}
+          options={['1', '2', '3', '4', '5']}
           label="Number of Insights"
         />
         <SelectField

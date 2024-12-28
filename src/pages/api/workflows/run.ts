@@ -40,7 +40,7 @@ const validateRequest = (body: any): WorkflowRequest => {
   }
 
   // Validate select options
-  const validInsights = ['5', '10', '15', '20', '25'];
+  const validInsights = ['1', '2', '3', '4', '5'];
   const validSummaryInsights = ['10', '20', '30', '40', '50'];
   const validLanguages = ['Български', 'English'];
 

@@ -1,5 +1,5 @@
 export interface WorkflowInputs {
-  insights_number: '5' | '10' | '15' | '20' | '25';
+  insights_number: '1' | '2' | '3' | '4' | '5';
   summary_insights_number: '10' | '20' | '30' | '40' | '50';
   language: 'Български' | 'English';
   file_upload: string;
