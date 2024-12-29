@@ -9,12 +9,12 @@ interface StatisticalOptionsSelectorProps {
 const STATISTICAL_OPTIONS = [
   { id: 'highest_value', label: 'Highest Value' },
   { id: 'lowest_nonzero', label: 'Lowest Non-Zero Value' },
-  { id: 'mean', label: 'Mean (Average)' },
-  { id: 'median', label: 'Median' },
-  { id: 'mode', label: 'Mode' },
-  { id: 'std_dev', label: 'Standard Deviation' },
-  { id: 'top_box', label: 'Top to Box' },
-  { id: 'bottom_box', label: 'Bottom to Box' }
+  { id: 'lowest_zero', label: 'Lowest Zero Value(s)' },
+  { id: 'second_highest_value', label: 'Second Highest Value' },
+  { id: 'second_lowest_nonzero', label: 'Second Lowest Non-Zero Value' },
+  { id: 'third_highest_value', label: 'Third Highest Value' },
+  { id: 'third_lowest_nonzero', label: 'Third Lowest Non-Zero Value' },
+  { id: 'non_expected_values', label: 'Non-Expected Values (Outliers)' }
 ];
 
 export const StatisticalOptionsSelector: React.FC<StatisticalOptionsSelectorProps> = ({
