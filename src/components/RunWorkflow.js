@@ -535,27 +535,62 @@ export default function RunWorkflow() {
       statistics: [],
       comparisons: [],
       patterns: [],
-      findings: []
+      findings: [],
+      integrity: []  // Added for Data Integrity Check
+    };
+
+    const sectionMatchers = {
+      insights: /(Инсайти|Insights):/i,
+      statistics: /(Статистически анализ|Statistical analysis):/i,
+      comparisons: /(Сравнения на категориите|Category comparisons):/i,
+      patterns: /(Забележителни модели|Notable patterns|^\(f\)\s*Notable patterns):/i,
+      findings: /(Основни констатации|Key findings|^\(g\)\s*Key findings):/i,
+      integrity: /(Data Integrity Check|^\(e\)\s*Data Integrity Check):/i
     };
 
     const lines = text.split('\n');
     let currentSection = null;
+    let buffer = [];
 
     lines.forEach(line => {
-      if (line.startsWith('Инсайти:')) {
-        currentSection = 'insights';
-      } else if (line.startsWith('Статистически анализ:')) {
-        currentSection = 'statistics';
-      } else if (line.startsWith('Сравнения на категориите:')) {
-        currentSection = 'comparisons';
-      } else if (line.startsWith('Забележителни модели:')) {
-        currentSection = 'patterns';
-      } else if (line.startsWith('Основни констатации:')) {
-        currentSection = 'findings';
-      } else if (line.trim() && currentSection) {
-        sections[currentSection].push(line.trim());
+      const trimmedLine = line.trim();
+      if (!trimmedLine) return;
+
+      // Check if this line starts a new section
+      let foundSection = false;
+      for (const [sectionKey, matcher] of Object.entries(sectionMatchers)) {
+        if (trimmedLine.match(matcher)) {
+          // If we had a previous section, flush its buffer
+          if (currentSection && buffer.length) {
+            sections[currentSection].push(...buffer);
+            buffer = [];
+          }
+          currentSection = sectionKey;
+          foundSection = true;
+          break;
+        }
+      }
+
+      if (!foundSection && currentSection) {
+        // Handle numbered points and bullet points
+        if (trimmedLine.match(/^(\d+[\)\.])|\-/)) {
+          // If we have buffered content, flush it first
+          if (buffer.length) {
+            sections[currentSection].push(buffer.join(' '));
+            buffer = [];
+          }
+          sections[currentSection].push(trimmedLine);
+        } else {
+          // Buffer the line for potential multi-line content
+          buffer.push(trimmedLine);
+        }
       }
     });
+
+    // Don't forget to flush the last buffer
+    if (currentSection && buffer.length) {
+      sections[currentSection].push(buffer.join(' '));
+    }
 
     return sections;
   };
@@ -661,9 +696,9 @@ export default function RunWorkflow() {
           <div className="space-y-6">
             {testResponse.output?.map((insight, index) => (
               <div key={index} className="p-6 bg-white rounded shadow">
-                {insight.startsWith('Въпрос') && (
+                {insight.match(/^(Въпрос|Question)\s*\d+:/) && (
                   <h4 className="text-xl font-bold mb-6 text-gray-800 border-b pb-2">
-                    {insight.split(':')[0]}
+                    {insight.split('\n')[0]}
                   </h4>
                 )}
                 
@@ -673,7 +708,7 @@ export default function RunWorkflow() {
                     <div className="space-y-6">
                       {sections.statistics.length > 0 && (
                         <div className="mb-6">
-                          <h5 className="text-lg font-semibold mb-3">Статистически анализ:</h5>
+                          <h5 className="text-lg font-semibold mb-3">Statistical Analysis:</h5>
                           <div className="pl-4 space-y-2">
                             {sections.statistics.map((stat, i) => (
                               <div key={i} className="text-gray-600">{stat}</div>
@@ -684,7 +719,7 @@ export default function RunWorkflow() {
                       
                       {sections.comparisons.length > 0 && (
                         <div className="mb-6">
-                          <h5 className="text-lg font-semibold mb-3">Сравнения на категориите:</h5>
+                          <h5 className="text-lg font-semibold mb-3">Category Comparisons:</h5>
                           <div className="pl-4 space-y-2">
                             {sections.comparisons.map((comp, i) => (
                               <div key={i} className="text-gray-600">{comp}</div>
@@ -693,9 +728,20 @@ export default function RunWorkflow() {
                         </div>
                       )}
                       
+                      {sections.integrity.length > 0 && (
+                        <div className="mb-6">
+                          <h5 className="text-lg font-semibold mb-3">Data Integrity:</h5>
+                          <div className="pl-4 space-y-2">
+                            {sections.integrity.map((item, i) => (
+                              <div key={i} className="text-gray-600">{item}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
                       {sections.patterns.length > 0 && (
                         <div className="mb-6">
-                          <h5 className="text-lg font-semibold mb-3">Забележителни модели:</h5>
+                          <h5 className="text-lg font-semibold mb-3">Notable Patterns:</h5>
                           <div className="pl-4 space-y-2">
                             {sections.patterns.map((pattern, i) => (
                               <div key={i} className="text-gray-600">{pattern}</div>
@@ -706,7 +752,7 @@ export default function RunWorkflow() {
                       
                       {sections.findings.length > 0 && (
                         <div className="mb-6">
-                          <h5 className="text-lg font-semibold mb-3">Основни констатации:</h5>
+                          <h5 className="text-lg font-semibold mb-3">Key Findings:</h5>
                           <div className="pl-4 space-y-2">
                             {sections.findings.map((finding, i) => (
                               <div key={i} className="text-gray-600">{finding}</div>
