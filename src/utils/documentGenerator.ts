@@ -108,44 +108,51 @@ class PDFGenerator {
   private lineHeight: number;
 
   constructor() {
-    this.doc = new jsPDF() as jsPDFWithAutoTable;
+    this.doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4',
+      putOnlyUsedFonts: true
+    }) as jsPDFWithAutoTable;
+    
     this.margin = 20;
     this.lineHeight = 7;
     this.pageWidth = this.doc.internal.pageSize.width - (2 * this.margin);
     this.yOffset = this.margin;
     
-    // Initialize fonts properly
     this.initializeFonts();
   }
 
   private initializeFonts() {
     try {
-      // Add fonts to VFS first
+      // Add fonts to VFS
       this.doc.addFileToVFS('Roboto-Regular.ttf', RobotoRegularBase64);
       this.doc.addFileToVFS('Roboto-Bold.ttf', RobotoBoldBase64);
 
-      // Then add the fonts
-      this.doc.addFont('Roboto-Regular.ttf', FONTS.REGULAR.name, FONTS.REGULAR.style);
-      this.doc.addFont('Roboto-Bold.ttf', FONTS.BOLD.name, FONTS.BOLD.style);
+      // Add fonts with Unicode encoding
+      this.doc.addFont('Roboto-Regular.ttf', 'Roboto-Regular', 'normal', 'Unicode');
+      this.doc.addFont('Roboto-Bold.ttf', 'Roboto-Bold', 'bold', 'Unicode');
 
       // Set default font
-      this.doc.setFont(FONTS.REGULAR.name);
+      this.doc.setFont('Roboto-Regular', 'normal', 'Unicode');
     } catch (error) {
       console.error('Error initializing fonts:', error);
-      // Fallback to built-in font
-      this.doc.setFont('helvetica');
+      this.doc.setFont('helvetica', 'normal', 'Unicode');
     }
   }
 
   private addText(text: string, isBold: boolean = false) {
+    const fontName = isBold ? 'Roboto-Bold' : 'Roboto-Regular';
+    const fontStyle = isBold ? 'bold' : 'normal';
+
     try {
-      this.doc.setFont(isBold ? FONTS.BOLD.name : FONTS.REGULAR.name);
+      this.doc.setFont(fontName, fontStyle, 'Unicode');
       
-      // Use proper text wrapping with font metrics
       const lines = this.doc.splitTextToSize(text, this.pageWidth, {
-        fontName: isBold ? FONTS.BOLD.name : FONTS.REGULAR.name
+        fontName: fontName,
+        encoding: 'Unicode'
       });
-      
+
       lines.forEach((line: string) => {
         if (this.yOffset > this.doc.internal.pageSize.height - this.margin) {
           this.doc.addPage();
@@ -157,7 +164,7 @@ class PDFGenerator {
       });
     } catch (error) {
       console.error('Error adding text:', error);
-      // Fallback to simple text addition without wrapping
+      // Fallback
       this.doc.text(text, this.margin, this.yOffset);
       this.yOffset += this.lineHeight;
     }
@@ -234,6 +241,43 @@ class PDFGenerator {
     return y + 7; // Return next Y position
   }
 
+  private processSummaryText(text: string) {
+    const sections = text.split(/\n\n+/);
+    
+    sections.forEach(section => {
+      if (!section.trim()) return;
+      
+      // Check if this is a section header
+      if (section.match(/^(Въпрос|Инсайти|Статистически анализ|Сравнения на категориите|Забележителни модели|Основни констатации):/)) {
+        this.addText(section.split(':')[0] + ':', true);
+        const content = section.split(':')[1]?.trim();
+        if (content) {
+          this.addText(content);
+        }
+      } else if (section.match(/^\d+\./)) {
+        // This is a numbered section
+        const lines = section.split('\n');
+        lines.forEach((line, index) => {
+          if (line.startsWith('-')) {
+            // This is a bullet point
+            this.addText('  ' + line.trim());
+          } else {
+            this.addText(line.trim());
+          }
+        });
+      } else {
+        this.addText(section.trim());
+      }
+      
+      // Add extra spacing between major sections
+      if (section.match(/^(Въпрос|Сравнения на категориите|Забележителни модели|Основни констатации):/)) {
+        this.yOffset += this.lineHeight * 2;
+      } else {
+        this.yOffset += this.lineHeight;
+      }
+    });
+  }
+
   public generate(output: string[], summary?: string) {
     try {
       // Process output content
@@ -257,19 +301,7 @@ class PDFGenerator {
         this.yOffset += 5;
 
         // Process summary content
-        const summaryItems = parseMarkdown(summary);
-        summaryItems.forEach(item => {
-          if (item.isHeader) {
-            // Add some spacing before headers
-            this.yOffset += 5;
-            this.addText(item.text, true);
-          } else {
-            const segments = parseBoldText(item.text);
-            segments.forEach(segment => {
-              this.addText(segment.text, segment.isBold);
-            });
-          }
-        });
+        this.processSummaryText(summary);
       }
 
       return this.doc;

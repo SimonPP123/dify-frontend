@@ -529,6 +529,37 @@ export default function RunWorkflow() {
     }
   };
 
+  const parseSection = (text) => {
+    const sections = {
+      insights: [],
+      statistics: [],
+      comparisons: [],
+      patterns: [],
+      findings: []
+    };
+
+    const lines = text.split('\n');
+    let currentSection = null;
+
+    lines.forEach(line => {
+      if (line.startsWith('Инсайти:')) {
+        currentSection = 'insights';
+      } else if (line.startsWith('Статистически анализ:')) {
+        currentSection = 'statistics';
+      } else if (line.startsWith('Сравнения на категориите:')) {
+        currentSection = 'comparisons';
+      } else if (line.startsWith('Забележителни модели:')) {
+        currentSection = 'patterns';
+      } else if (line.startsWith('Основни констатации:')) {
+        currentSection = 'findings';
+      } else if (line.trim() && currentSection) {
+        sections[currentSection].push(line.trim());
+      }
+    });
+
+    return sections;
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {renderConnectionStatus()}
@@ -627,16 +658,93 @@ export default function RunWorkflow() {
               whole_summary={testResponse.whole_summary || ''}
             />
           </div>
-          <div className="space-y-4">
+          <div className="space-y-6">
             {testResponse.output?.map((insight, index) => (
-              <div key={index} className="p-3 bg-white rounded shadow">
-                {insight}
+              <div key={index} className="p-6 bg-white rounded shadow">
+                {insight.startsWith('Въпрос') && (
+                  <h4 className="text-xl font-bold mb-6 text-gray-800 border-b pb-2">
+                    {insight.split(':')[0]}
+                  </h4>
+                )}
+                
+                {(() => {
+                  const sections = parseSection(insight);
+                  return (
+                    <div className="space-y-6">
+                      {sections.statistics.length > 0 && (
+                        <div className="mb-6">
+                          <h5 className="text-lg font-semibold mb-3">Статистически анализ:</h5>
+                          <div className="pl-4 space-y-2">
+                            {sections.statistics.map((stat, i) => (
+                              <div key={i} className="text-gray-600">{stat}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {sections.comparisons.length > 0 && (
+                        <div className="mb-6">
+                          <h5 className="text-lg font-semibold mb-3">Сравнения на категориите:</h5>
+                          <div className="pl-4 space-y-2">
+                            {sections.comparisons.map((comp, i) => (
+                              <div key={i} className="text-gray-600">{comp}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {sections.patterns.length > 0 && (
+                        <div className="mb-6">
+                          <h5 className="text-lg font-semibold mb-3">Забележителни модели:</h5>
+                          <div className="pl-4 space-y-2">
+                            {sections.patterns.map((pattern, i) => (
+                              <div key={i} className="text-gray-600">{pattern}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {sections.findings.length > 0 && (
+                        <div className="mb-6">
+                          <h5 className="text-lg font-semibold mb-3">Основни констатации:</h5>
+                          <div className="pl-4 space-y-2">
+                            {sections.findings.map((finding, i) => (
+                              <div key={i} className="text-gray-600">{finding}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             ))}
+            
             {testResponse.summary && (
-              <div className="p-3 bg-white rounded shadow mt-4">
-                <h4 className="font-medium mb-2">Summary</h4>
-                {testResponse.summary}
+              <div className="p-6 bg-white rounded shadow mt-6">
+                <h4 className="text-xl font-bold mb-6 text-gray-800 border-b pb-2">
+                  Summary
+                </h4>
+                <div className="space-y-4">
+                  {testResponse.summary.split('\n').map((line, index) => {
+                    if (!line.trim()) return null;
+                    
+                    // Check if line is a numbered point
+                    const isNumberedPoint = /^\d+\./.test(line);
+                    
+                    return (
+                      <div 
+                        key={index} 
+                        className={`
+                          ${isNumberedPoint ? 'font-medium' : ''}
+                          text-gray-600 leading-relaxed
+                        `}
+                      >
+                        {line.trim()}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

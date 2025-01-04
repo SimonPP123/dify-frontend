@@ -11,11 +11,34 @@ interface jsPDFWithAutoTable extends jsPDF {
 }
 
 declare module 'jspdf' {
+  interface jsPDFOptions {
+    orientation?: 'portrait' | 'landscape' | 'p' | 'l';
+    unit?: 'pt' | 'px' | 'in' | 'mm' | 'cm' | 'ex' | 'em' | 'pc';
+    format?: string | number[];
+    putOnlyUsedFonts?: boolean;
+    compress?: boolean;
+    precision?: number;
+    userUnit?: number;
+  }
+
   interface jsPDF {
     addFileToVFS(filename: string, base64Content: string): void;
-    addFont(url: string, fontName: string, fontStyle: string, encoding?: string): void;
-    setFont(fontName: string, fontStyle?: string): jsPDF;
-    splitTextToSize(text: string, maxWidth: number, options?: { fontName?: string }): string[];
+    addFont(url: string, fontName: string, fontStyle: string, encoding: string): void;
+    setFont(fontName: string, fontStyle?: string, encoding?: string): jsPDF;
+    splitTextToSize(text: string, maxWidth: number, options?: { 
+      fontName?: string,
+      encoding?: string 
+    }): string[];
+    internal: {
+      events: any;
+      acroformPlugin: any;
+      pageSize: {
+        width: number;
+        height: number;
+        getWidth: () => number;
+        getHeight: () => number;
+      };
+    };
   }
 }
 
