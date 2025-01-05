@@ -240,8 +240,8 @@ export default function RunWorkflow() {
         const row = lines[i].split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/);
         const firstColumn = row[0]?.trim().replace(/^"|"$/g, '');
         
-        // Skip header row
-        if (firstColumn === 'Въпрос') continue;
+        // Skip first row (header)
+        if (i === 0) continue;
         
         if (firstColumn && !firstColumn.startsWith(',')) {
           questionNumber++;
