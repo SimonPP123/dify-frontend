@@ -536,7 +536,7 @@ export default function RunWorkflow() {
       comparisons: [],
       patterns: [],
       findings: [],
-      integrity: []  // Added for Data Integrity Check
+      integrity: []
     };
 
     const sectionMatchers = {
@@ -547,6 +547,9 @@ export default function RunWorkflow() {
       findings: /(Основни констатации|Key findings|^\(g\)\s*Key findings):/i,
       integrity: /(Data Integrity Check|^\(e\)\s*Data Integrity Check):/i
     };
+
+    // Store the matched headers to use in rendering
+    const matchedHeaders = {};
 
     const lines = text.split('\n');
     let currentSection = null;
@@ -559,8 +562,11 @@ export default function RunWorkflow() {
       // Check if this line starts a new section
       let foundSection = false;
       for (const [sectionKey, matcher] of Object.entries(sectionMatchers)) {
-        if (trimmedLine.match(matcher)) {
-          // If we had a previous section, flush its buffer
+        const match = trimmedLine.match(matcher);
+        if (match) {
+          // Store the actual matched header text
+          matchedHeaders[sectionKey] = match[0].replace(':', '');
+          
           if (currentSection && buffer.length) {
             sections[currentSection].push(...buffer);
             buffer = [];
@@ -592,7 +598,7 @@ export default function RunWorkflow() {
       sections[currentSection].push(buffer.join(' '));
     }
 
-    return sections;
+    return { sections, matchedHeaders };
   };
 
   return (
@@ -703,12 +709,14 @@ export default function RunWorkflow() {
                 )}
                 
                 {(() => {
-                  const sections = parseSection(insight);
+                  const { sections, matchedHeaders } = parseSection(insight);
                   return (
                     <div className="space-y-6">
                       {sections.statistics.length > 0 && (
                         <div className="mb-6">
-                          <h5 className="text-lg font-semibold mb-3">Statistical Analysis:</h5>
+                          <h5 className="text-lg font-semibold mb-3">
+                            {matchedHeaders.statistics || 'Statistical Analysis'}:
+                          </h5>
                           <div className="pl-4 space-y-2">
                             {sections.statistics.map((stat, i) => (
                               <div key={i} className="text-gray-600">{stat}</div>
@@ -719,7 +727,9 @@ export default function RunWorkflow() {
                       
                       {sections.comparisons.length > 0 && (
                         <div className="mb-6">
-                          <h5 className="text-lg font-semibold mb-3">Category Comparisons:</h5>
+                          <h5 className="text-lg font-semibold mb-3">
+                            {matchedHeaders.comparisons || 'Category Comparisons'}:
+                          </h5>
                           <div className="pl-4 space-y-2">
                             {sections.comparisons.map((comp, i) => (
                               <div key={i} className="text-gray-600">{comp}</div>
@@ -730,7 +740,9 @@ export default function RunWorkflow() {
                       
                       {sections.integrity.length > 0 && (
                         <div className="mb-6">
-                          <h5 className="text-lg font-semibold mb-3">Data Integrity:</h5>
+                          <h5 className="text-lg font-semibold mb-3">
+                            {matchedHeaders.integrity || 'Data Integrity'}:
+                          </h5>
                           <div className="pl-4 space-y-2">
                             {sections.integrity.map((item, i) => (
                               <div key={i} className="text-gray-600">{item}</div>
@@ -741,7 +753,9 @@ export default function RunWorkflow() {
                       
                       {sections.patterns.length > 0 && (
                         <div className="mb-6">
-                          <h5 className="text-lg font-semibold mb-3">Notable Patterns:</h5>
+                          <h5 className="text-lg font-semibold mb-3">
+                            {matchedHeaders.patterns || 'Notable Patterns'}:
+                          </h5>
                           <div className="pl-4 space-y-2">
                             {sections.patterns.map((pattern, i) => (
                               <div key={i} className="text-gray-600">{pattern}</div>
@@ -752,7 +766,9 @@ export default function RunWorkflow() {
                       
                       {sections.findings.length > 0 && (
                         <div className="mb-6">
-                          <h5 className="text-lg font-semibold mb-3">Key Findings:</h5>
+                          <h5 className="text-lg font-semibold mb-3">
+                            {matchedHeaders.findings || 'Key Findings'}:
+                          </h5>
                           <div className="pl-4 space-y-2">
                             {sections.findings.map((finding, i) => (
                               <div key={i} className="text-gray-600">{finding}</div>
